@@ -22,6 +22,20 @@ export const userIdParamSchema = z.object({
   userId: z.string().min(1),
 });
 
+export const createUserBodySchema = z.object({
+  username: z.string().trim().min(2).max(32),
+  pin: z.string().trim().min(4).max(12),
+});
+
+export const loginBodySchema = z.object({
+  username: z.string().trim().min(2).max(32),
+  pin: z.string().trim().min(4).max(12),
+});
+
+export const userFundsBodySchema = z.object({
+  amount: z.number().positive(),
+});
+
 export const starterEventBodySchema = z.object({
   sport: sportSchema.optional(),
   event_type: z.string().optional(),
@@ -45,6 +59,8 @@ export type MarketStatus = z.infer<typeof marketStatusSchema>;
 export type Selection = z.infer<typeof selectionSchema>;
 export type BetRequest = z.infer<typeof betRequestSchema>;
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
+export type CreateUserBody = z.infer<typeof createUserBodySchema>;
+export type LoginBody = z.infer<typeof loginBodySchema>;
 
 export type AmmState = {
   yes_pool: number;
@@ -118,6 +134,16 @@ export type Wallet = {
   balance: number;
   updated_at_ms: number;
 };
+
+export type UserAccount = {
+  user_id: string;
+  username: string;
+  pin: string;
+  created_at_ms: number;
+  updated_at_ms: number;
+};
+
+export type PublicUserAccount = Omit<UserAccount, "pin">;
 
 export type StreamStatus = {
   active_connections: number;

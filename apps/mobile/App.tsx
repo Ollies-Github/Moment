@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppNavigator } from "./src/navigation/AppNavigator";
+import { AuthScreen } from "./src/screens/AuthScreen";
 import { api } from "./src/services/api";
 import { connectSocket } from "./src/services/socket";
 import { useAppStore } from "./src/store/useAppStore";
@@ -23,29 +24,41 @@ const navTheme = {
 };
 
 export default function App() {
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const userId = useAppStore((s) => s.userId);
   const setMarkets = useAppStore((s) => s.setMarkets);
   const setBets = useAppStore((s) => s.setBets);
   const setWallet = useAppStore((s) => s.setWallet);
+  const setAccount = useAppStore((s) => s.setAccount);
+  const setStats = useAppStore((s) => s.setStats);
   const setConnection = useAppStore((s) => s.setConnection);
   const upsertMarket = useAppStore((s) => s.upsertMarket);
   const upsertBet = useAppStore((s) => s.upsertBet);
 
   useEffect(() => {
+    if (!isAuthenticated || !userId) {
+      setConnection("disconnected");
+      return;
+    }
+
     let dead = false;
 
     const bootstrap = async () => {
       setConnection("connecting");
       try {
-        const [markets, bets, wallet] = await Promise.all([
+        const [markets, bets, wallet, account, stats] = await Promise.all([
           api.getLiveMarkets(),
           api.getBets(userId),
           api.getWallet(userId),
+          api.getUser(userId),
+          api.getUserStats(userId),
         ]);
         if (dead) return;
         setMarkets(markets);
         setBets(bets);
         setWallet(wallet);
+        setAccount(account);
+        setStats(stats);
       } catch {
         if (!dead) setConnection("disconnected");
       }
@@ -68,14 +81,18 @@ export default function App() {
       dead = true;
       socket.disconnect();
     };
-  }, [setBets, setConnection, setMarkets, setWallet, upsertBet, upsertMarket, userId]);
+  }, [isAuthenticated, setAccount, setBets, setConnection, setMarkets, setStats, setWallet, upsertBet, upsertMarket, userId]);
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <NavigationContainer theme={navTheme}>
-        <AppNavigator />
-      </NavigationContainer>
+      {isAuthenticated ? (
+        <NavigationContainer theme={navTheme}>
+          <AppNavigator />
+        </NavigationContainer>
+      ) : (
+        <AuthScreen />
+      )}
     </SafeAreaProvider>
   );
 }

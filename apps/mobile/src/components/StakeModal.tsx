@@ -60,7 +60,7 @@ export function StakeModal({ visible, market, selection, userId, onClose, onDone
       onClose();
     } catch (e) {
       setSubmitState("rejected");
-      setError(e instanceof Error ? e.message : "Bet failed");
+      setError(e instanceof Error ? e.message : "Pick failed");
     }
   };
 
@@ -70,7 +70,7 @@ export function StakeModal({ visible, market, selection, userId, onClose, onDone
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
-          <Text style={styles.title}>Bet {selection ?? ""}</Text>
+          <Text style={styles.title}>Pick {selection ?? ""}</Text>
 
           <View style={styles.row}>
             {PRESETS.map((preset) => (

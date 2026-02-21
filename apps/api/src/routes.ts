@@ -4,10 +4,13 @@ import { EngineError, type MarketEngine } from "./engine";
 import {
   betRequestSchema,
   closeMarketBodySchema,
+  createUserBodySchema,
+  loginBodySchema,
   marketIdParamSchema,
   quoteRequestSchema,
   settleMarketBodySchema,
   starterEventBodySchema,
+  userFundsBodySchema,
   userIdParamSchema,
   type Selection,
 } from "./types";
@@ -49,7 +52,7 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
     }
   });
 
-  fastify.post("/bets", async (request, reply) => {
+  const handlePlacePick = async (request: any, reply: any) => {
     const body = betRequestSchema.safeParse(request.body);
     if (!body.success) {
       return reply.code(400).send({ message: body.error.message });
@@ -66,9 +69,17 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
     }
 
     return result.bet;
-  });
+  };
+
+  fastify.post("/bets", handlePlacePick);
+  fastify.post("/picks", handlePlacePick);
 
   fastify.get("/bets/:userId", async (request) => {
+    const { userId } = userIdParamSchema.parse(request.params);
+    return engine.getBetsForUser(userId);
+  });
+
+  fastify.get("/picks/:userId", async (request) => {
     const { userId } = userIdParamSchema.parse(request.params);
     return engine.getBetsForUser(userId);
   });
@@ -76,6 +87,100 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
   fastify.get("/users/:userId/wallet", async (request) => {
     const { userId } = userIdParamSchema.parse(request.params);
     return engine.getWallet(userId);
+  });
+
+  fastify.get("/users/:userId", async (request) => {
+    const { userId } = userIdParamSchema.parse(request.params);
+    return engine.getUser(userId);
+  });
+
+  fastify.post("/users", async (request, reply) => {
+    const body = createUserBodySchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    try {
+      return engine.registerUser(body.data.username, body.data.pin);
+    } catch (error) {
+      if (error instanceof EngineError) {
+        return reply.code(error.statusCode).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  fastify.post("/auth/register", async (request, reply) => {
+    const body = createUserBodySchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    try {
+      return engine.registerUser(body.data.username, body.data.pin);
+    } catch (error) {
+      if (error instanceof EngineError) {
+        return reply.code(error.statusCode).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  fastify.post("/auth/login", async (request, reply) => {
+    const body = loginBodySchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    try {
+      return engine.loginUser(body.data.username, body.data.pin);
+    } catch (error) {
+      if (error instanceof EngineError) {
+        return reply.code(error.statusCode).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  fastify.get("/users/:userId/stats", async (request) => {
+    const { userId } = userIdParamSchema.parse(request.params);
+    return engine.getUserStats(userId);
+  });
+
+  fastify.post("/users/:userId/funds/add", async (request, reply) => {
+    const { userId } = userIdParamSchema.parse(request.params);
+    const body = userFundsBodySchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    try {
+      const wallet = engine.addFunds(userId, body.data.amount);
+      return { wallet };
+    } catch (error) {
+      if (error instanceof EngineError) {
+        return reply.code(error.statusCode).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  fastify.post("/users/:userId/funds/withdraw", async (request, reply) => {
+    const { userId } = userIdParamSchema.parse(request.params);
+    const body = userFundsBodySchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    try {
+      const wallet = engine.withdrawFunds(userId, body.data.amount);
+      return { wallet };
+    } catch (error) {
+      if (error instanceof EngineError) {
+        return reply.code(error.statusCode).send({ message: error.message });
+      }
+      throw error;
+    }
   });
 
   fastify.get("/events/stream-status", async () => {

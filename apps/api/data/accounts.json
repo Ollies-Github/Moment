@@ -1,0 +1,31 @@
+{
+  "users": [
+    {
+      "user_id": "demo-user-001",
+      "username": "demo",
+      "pin": "1234",
+      "created_at_ms": 1771707110626,
+      "updated_at_ms": 1771707110626
+    },
+    {
+      "user_id": "usr_28de5c5c",
+      "username": "Ollie",
+      "pin": "1234",
+      "created_at_ms": 1771708054573,
+      "updated_at_ms": 1771708054573
+    }
+  ],
+  "wallets": [
+    {
+      "user_id": "demo-user-001",
+      "balance": 100,
+      "updated_at_ms": 1771707110626
+    },
+    {
+      "user_id": "usr_28de5c5c",
+      "balance": 100,
+      "updated_at_ms": 1771708054573
+    }
+  ],
+  "picks": []
+}

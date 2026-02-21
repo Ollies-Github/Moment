@@ -69,7 +69,7 @@ export function F1Screen() {
         <Text style={styles.subtitle}>Overtake in X laps markets only</Text>
         <View style={styles.metaRow}>
           <Text style={styles.meta}>Wallet {wallet?.balance.toFixed(2) ?? "--"}</Text>
-          <Text style={styles.meta}>{f1Bets.length} active tickets</Text>
+          <Text style={styles.meta}>{f1Bets.length} active picks</Text>
         </View>
       </LinearGradient>
 

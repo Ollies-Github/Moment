@@ -71,10 +71,10 @@ export function StocksScreen() {
         <View style={styles.heroTop}>
           <Text style={styles.title}>Stocks</Text>
         </View>
-        <Text style={styles.subtitle}>Bet if the next move is UP or DOWN</Text>
+        <Text style={styles.subtitle}>Pick if the next move is UP or DOWN</Text>
         <View style={styles.metaRow}>
           <Text style={styles.meta}>Wallet {wallet?.balance.toFixed(2) ?? "--"}</Text>
-          <Text style={styles.meta}>{stockBets.length} open bets</Text>
+          <Text style={styles.meta}>{stockBets.length} active picks</Text>
         </View>
       </LinearGradient>
 

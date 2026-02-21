@@ -7,6 +7,7 @@ This is a clean rewrite with only:
 Mobile now has two primary screens:
 - `F1` tab: overtake-in-X-laps markets (YES/NO)
 - `Stocks` tab: volatile stock direction markets (UP/DOWN) with embedded TradingView chart
+- `Account` tab: wallet total + account creation
 
 ## 1) Install
 
@@ -51,6 +52,8 @@ EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm dev:mobile
 - `POST /bets`
 - `GET /bets/:userId`
 - `GET /users/:userId/wallet`
+- `GET /users/:userId`
+- `POST /users`
 - `GET /events/stream-status`
 - `POST /dev/simulate/starter-event`
 - `POST /dev/simulate/close-market`

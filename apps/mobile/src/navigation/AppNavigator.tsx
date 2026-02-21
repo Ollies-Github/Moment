@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import { DevScreen } from "../screens/DevScreen";
 import { F1Screen } from "../screens/F1Screen";
+import { ProfileScreen } from "../screens/ProfileScreen";
 import { StocksScreen } from "../screens/StocksScreen";
 import { colors } from "../theme/tokens";
 
@@ -24,13 +25,20 @@ export function AppNavigator() {
         tabBarInactiveTintColor: colors.muted,
         tabBarIcon: ({ color, size }) => {
           const name =
-            route.name === "F1" ? "speedometer" : route.name === "Stocks" ? "trending-up" : "construct";
+            route.name === "F1"
+              ? "speedometer"
+              : route.name === "Stocks"
+                ? "trending-up"
+                : route.name === "Profile"
+                  ? "person-circle"
+                  : "construct";
           return <Ionicons name={name as keyof typeof Ionicons.glyphMap} size={size} color={color} />;
         },
       })}
     >
       <Tabs.Screen name="F1" component={F1Screen} />
       <Tabs.Screen name="Stocks" component={StocksScreen} />
+      <Tabs.Screen name="Profile" component={ProfileScreen} />
       <Tabs.Screen name="Dev" component={DevScreen} />
     </Tabs.Navigator>
   );

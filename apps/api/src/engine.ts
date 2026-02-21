@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 import type {
   AmmState,
@@ -6,11 +8,12 @@ import type {
   BetRequest,
   Market,
   MarketType,
+  PublicUserAccount,
   PublishEventName,
   Selection,
-  Sport,
   StarterInput,
   StreamStatus,
+  UserAccount,
   Wallet,
 } from "./types";
 
@@ -18,16 +21,26 @@ const DEFAULT_VIRTUAL_LIQUIDITY = 1000;
 const DEFAULT_FEE_BPS = 120;
 const DEFAULT_INITIAL_PROBABILITY = 0.5;
 const DEFAULT_STARTING_BALANCE = 100;
+const DEFAULT_DEMO_PIN = "1234";
+const ACCOUNTS_FILE = resolve(process.cwd(), "data", "accounts.json");
 
+const F1_DRIVERS = [
+  ["Norris", "Verstappen"],
+  ["Leclerc", "Piastri"],
+  ["Hamilton", "Russell"],
+  ["Sainz", "Alonso"],
+] as const;
+
+const VOLATILE_STOCKS = ["TSLA", "NVDA", "COIN", "MSTR", "PLTR", "SMCI"] as const;
+
+const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const clamp = (n: number, min: number, max: number): number => Math.max(min, Math.min(max, n));
 
 const normalizeSelection = (selection: Selection): "YES" | "NO" =>
   selection === "YES" || selection === "HIGHER" ? "YES" : "NO";
 
 const validSelection = (marketType: MarketType, selection: Selection): boolean => {
-  if (marketType === "binary_yes_no") {
-    return selection === "YES" || selection === "NO";
-  }
+  if (marketType === "binary_yes_no") return selection === "YES" || selection === "NO";
   return selection === "HIGHER" || selection === "LOWER";
 };
 
@@ -64,11 +77,8 @@ const getQuote = (amm: AmmState, selection: Selection, stake: number) => {
     trade_count: amm.trade_count + 1,
   };
 
-  if (side === "YES") {
-    nextAmm.yes_pool += effectiveStake;
-  } else {
-    nextAmm.no_pool += effectiveStake;
-  }
+  if (side === "YES") nextAmm.yes_pool += effectiveStake;
+  else nextAmm.no_pool += effectiveStake;
 
   const after = getImpliedProbabilities(nextAmm);
 
@@ -84,16 +94,17 @@ const getQuote = (amm: AmmState, selection: Selection, stake: number) => {
   };
 };
 
-const F1_DRIVERS = [
-  ["Norris", "Verstappen"],
-  ["Leclerc", "Piastri"],
-  ["Hamilton", "Russell"],
-  ["Sainz", "Alonso"],
-] as const;
+type PersistedState = {
+  users: UserAccount[];
+  wallets: Wallet[];
+  picks: Bet[];
+};
 
-const VOLATILE_STOCKS = ["TSLA", "NVDA", "COIN", "MSTR", "PLTR", "SMCI"] as const;
-
-const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+export type UserStats = {
+  lifetime_picks: number;
+  won: number;
+  lost: number;
+};
 
 export class EngineError extends Error {
   constructor(message: string, readonly statusCode: number) {
@@ -126,6 +137,7 @@ export class MarketEngine {
   private readonly bets = new Map<string, Bet>();
   private readonly betsByUser = new Map<string, string[]>();
   private readonly wallets = new Map<string, Wallet>();
+  private readonly users = new Map<string, UserAccount>();
 
   private safetyHandle?: NodeJS.Timeout;
 
@@ -139,21 +151,26 @@ export class MarketEngine {
     this.publish = publish;
     this.maxOpenDurationMs = options.maxOpenDurationMs ?? 90_000;
     this.safetySweepIntervalMs = options.safetySweepIntervalMs ?? 2_000;
+
+    this.loadState();
+    if (!this.findUserByUsername("demo")) {
+      this.ensureUser("demo-user-001", "demo", DEFAULT_DEMO_PIN);
+      this.ensureWallet("demo-user-001");
+      this.persistState();
+    }
   }
 
   start(): void {
-    if (!this.safetyHandle) {
-      this.safetyHandle = setInterval(() => {
-        this.suspendStaleMarkets();
-      }, this.safetySweepIntervalMs);
-    }
+    if (this.safetyHandle) return;
+    this.safetyHandle = setInterval(() => {
+      this.suspendStaleMarkets();
+    }, this.safetySweepIntervalMs);
   }
 
   stop(): void {
-    if (this.safetyHandle) {
-      clearInterval(this.safetyHandle);
-      this.safetyHandle = undefined;
-    }
+    if (!this.safetyHandle) return;
+    clearInterval(this.safetyHandle);
+    this.safetyHandle = undefined;
   }
 
   getStreamStatus(): StreamStatus {
@@ -189,6 +206,72 @@ export class MarketEngine {
     return this.ensureWallet(userId);
   }
 
+  getUser(userId: string): PublicUserAccount {
+    const user = this.ensureUser(userId);
+    return this.toPublicUser(user);
+  }
+
+  getUserStats(userId: string): UserStats {
+    const all = this.getBetsForUser(userId).filter((pick) => pick.status !== "rejected");
+    const won = all.filter((pick) => pick.status === "settled_won").length;
+    const lost = all.filter((pick) => pick.status === "settled_lost").length;
+    return {
+      lifetime_picks: all.length,
+      won,
+      lost,
+    };
+  }
+
+  registerUser(username: string, pin: string): { user: PublicUserAccount; wallet: Wallet } {
+    const cleanedUsername = username.trim();
+    const cleanedPin = pin.trim();
+    const existing = this.findUserByUsername(cleanedUsername);
+    if (existing) throw new EngineError("Username already exists", 409);
+
+    const userId = `usr_${randomUUID().slice(0, 8)}`;
+    const user = this.ensureUser(userId, cleanedUsername, cleanedPin);
+    const wallet = this.ensureWallet(user.user_id);
+    this.persistState();
+
+    return {
+      user: this.toPublicUser(user),
+      wallet,
+    };
+  }
+
+  loginUser(username: string, pin: string): { user: PublicUserAccount; wallet: Wallet } {
+    const found = this.findUserByUsername(username.trim());
+    if (!found || found.pin !== pin.trim()) {
+      throw new EngineError("Invalid username or PIN", 401);
+    }
+
+    return {
+      user: this.toPublicUser(found),
+      wallet: this.ensureWallet(found.user_id),
+    };
+  }
+
+  addFunds(userId: string, amount: number): Wallet {
+    const wallet = this.ensureWallet(userId);
+    wallet.balance += amount;
+    wallet.updated_at_ms = Date.now();
+    this.wallets.set(wallet.user_id, wallet);
+    this.persistState();
+    this.emit("wallet.updated", wallet);
+    return wallet;
+  }
+
+  withdrawFunds(userId: string, amount: number): Wallet {
+    const wallet = this.ensureWallet(userId);
+    if (wallet.balance < amount) throw new EngineError("Insufficient wallet balance", 400);
+    wallet.balance -= amount;
+    wallet.updated_at_ms = Date.now();
+    this.wallets.set(wallet.user_id, wallet);
+    this.persistState();
+    this.emit("wallet.updated", wallet);
+    return wallet;
+  }
+
   quoteBet(request: BetRequest) {
     const market = this.markets.get(request.market_id);
     if (!market) throw new EngineError("Market not found", 404);
@@ -198,7 +281,6 @@ export class MarketEngine {
     }
 
     const quote = getQuote(market.amm_state, request.selection, request.stake);
-
     return {
       market_id: market.market_id,
       selection: request.selection,
@@ -225,13 +307,11 @@ export class MarketEngine {
         reason: rejectedBet.rejection_reason,
         rejected_at_ms: Date.now(),
       });
+      this.publish("pick.rejected" as PublishEventName, rejectedBet);
       return { rejectedBet };
     }
 
-    if (market.status !== "open") {
-      return { error: `Market is ${market.status}` };
-    }
-
+    if (market.status !== "open") return { error: `Market is ${market.status}` };
     if (!validSelection(market.market_type, request.selection)) {
       return { error: "Selection does not match market type" };
     }
@@ -239,6 +319,12 @@ export class MarketEngine {
     const wallet = this.ensureWallet(request.user_id);
     if (wallet.balance < request.stake) {
       this.emit("bet.rejected", {
+        market_id: request.market_id,
+        user_id: request.user_id,
+        reason: "Insufficient wallet balance",
+        rejected_at_ms: Date.now(),
+      });
+      this.publish("pick.rejected" as PublishEventName, {
         market_id: request.market_id,
         user_id: request.user_id,
         reason: "Insufficient wallet balance",
@@ -275,9 +361,11 @@ export class MarketEngine {
 
     this.bets.set(bet.bet_id, bet);
     this.betsByUser.set(bet.user_id, [...(this.betsByUser.get(bet.user_id) ?? []), bet.bet_id]);
+    this.persistState();
 
     this.emit("market.updated", market);
     this.emit("bet.accepted", bet);
+    this.publish("pick.accepted" as PublishEventName, bet);
     this.emit("wallet.updated", wallet);
 
     return { bet };
@@ -309,17 +397,11 @@ export class MarketEngine {
     const market = this.markets.get(marketId);
     if (!market) return undefined;
 
-    if (market.status === "open") {
-      this.closeMarket(marketId, "settlement_requested");
-    }
-
-    if (market.status !== "closed" && market.status !== "suspended") {
-      return market;
-    }
+    if (market.status === "open") this.closeMarket(marketId, "settlement_requested");
+    if (market.status !== "closed" && market.status !== "suspended") return market;
 
     await new Promise((resolve) => setTimeout(resolve, 300));
     const oracleConfirmed = Math.random() <= 0.95;
-
     if (!oracleConfirmed) {
       market.status = "suspended";
       market.timestamps.updated_at_ms = Date.now();
@@ -334,7 +416,6 @@ export class MarketEngine {
 
     for (const bet of this.bets.values()) {
       if (bet.market_id !== market.market_id || bet.status !== "accepted") continue;
-
       const won = normalizeSelection(bet.selection) === outcomeCanonical;
       bet.status = won ? "settled_won" : "settled_lost";
       bet.payout = won ? bet.potential_payout : 0;
@@ -354,15 +435,13 @@ export class MarketEngine {
     market.timestamps.updated_at_ms = now;
     this.markets.set(market.market_id, market);
     this.emit("market.settled", market);
+    this.persistState();
 
     return market;
   }
 
   reset(): void {
     this.markets.clear();
-    this.bets.clear();
-    this.betsByUser.clear();
-    this.wallets.clear();
     this.seed();
   }
 
@@ -406,6 +485,7 @@ export class MarketEngine {
   }
 
   private ensureWallet(userId: string): Wallet {
+    this.ensureUser(userId);
     const existing = this.wallets.get(userId);
     if (existing) return existing;
 
@@ -414,9 +494,66 @@ export class MarketEngine {
       balance: DEFAULT_STARTING_BALANCE,
       updated_at_ms: Date.now(),
     };
-
     this.wallets.set(userId, wallet);
     return wallet;
+  }
+
+  private ensureUser(userId: string, username?: string, pin?: string): UserAccount {
+    const existing = this.users.get(userId);
+    if (existing) return existing;
+
+    const now = Date.now();
+    const user: UserAccount = {
+      user_id: userId,
+      username: username ?? `user_${userId.slice(-4)}`,
+      pin: pin ?? DEFAULT_DEMO_PIN,
+      created_at_ms: now,
+      updated_at_ms: now,
+    };
+    this.users.set(userId, user);
+    return user;
+  }
+
+  private toPublicUser(user: UserAccount): PublicUserAccount {
+    const { pin: _pin, ...rest } = user;
+    return rest;
+  }
+
+  private findUserByUsername(username: string): UserAccount | undefined {
+    const normalized = username.trim().toLowerCase();
+    return [...this.users.values()].find((user) => user.username.trim().toLowerCase() === normalized);
+  }
+
+  private loadState(): void {
+    mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
+    if (!existsSync(ACCOUNTS_FILE)) return;
+
+    try {
+      const raw = readFileSync(ACCOUNTS_FILE, "utf8");
+      const parsed = JSON.parse(raw) as PersistedState;
+
+      for (const user of parsed.users ?? []) this.users.set(user.user_id, user);
+      for (const wallet of parsed.wallets ?? []) this.wallets.set(wallet.user_id, wallet);
+      for (const pickRow of parsed.picks ?? []) {
+        this.bets.set(pickRow.bet_id, pickRow);
+        this.betsByUser.set(pickRow.user_id, [...(this.betsByUser.get(pickRow.user_id) ?? []), pickRow.bet_id]);
+      }
+    } catch {
+      this.users.clear();
+      this.wallets.clear();
+      this.bets.clear();
+      this.betsByUser.clear();
+    }
+  }
+
+  private persistState(): void {
+    const state: PersistedState = {
+      users: [...this.users.values()],
+      wallets: [...this.wallets.values()],
+      picks: [...this.bets.values()],
+    };
+    mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
+    writeFileSync(ACCOUNTS_FILE, JSON.stringify(state, null, 2), "utf8");
   }
 
   private buildMarketFromStarter(input: StarterInput): Market {
@@ -427,9 +564,7 @@ export class MarketEngine {
     let question = "Will this resolve to YES?";
 
     if (input.sport === "F1") {
-      const [driverA, driverB] = Array.isArray(context.drivers)
-        ? (context.drivers as string[])
-        : pick(F1_DRIVERS);
+      const [driverA, driverB] = Array.isArray(context.drivers) ? (context.drivers as string[]) : pick(F1_DRIVERS);
       const laps =
         typeof context.laps === "number"
           ? Math.max(1, Math.floor(context.laps))
@@ -455,12 +590,7 @@ export class MarketEngine {
     }
 
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
-
-    const amm_state = createAmmState(
-      DEFAULT_INITIAL_PROBABILITY,
-      DEFAULT_VIRTUAL_LIQUIDITY,
-      DEFAULT_FEE_BPS,
-    );
+    const amm_state = createAmmState(DEFAULT_INITIAL_PROBABILITY, DEFAULT_VIRTUAL_LIQUIDITY, DEFAULT_FEE_BPS);
 
     return {
       market_id,
@@ -502,7 +632,6 @@ export class MarketEngine {
 
   private suspendStaleMarkets(): void {
     const now = Date.now();
-
     for (const market of this.markets.values()) {
       if (market.status !== "open") continue;
       if (now <= market.safety.expires_at_ms) continue;

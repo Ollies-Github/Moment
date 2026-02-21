@@ -1,4 +1,4 @@
-import type { Bet, BetQuote, BetRequest, Market, Selection, Wallet } from "../types/contracts";
+import type { Bet, BetQuote, BetRequest, Market, Selection, UserAccount, UserStats, Wallet } from "../types/contracts";
 import { API_URL } from "../utils/network";
 
 class ApiError extends Error {
@@ -7,6 +7,47 @@ class ApiError extends Error {
   }
 }
 
+const parseJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+};
+
+const extractMessage = (value: unknown): string | undefined => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const nested = parseJson(trimmed);
+    if (nested !== undefined) {
+      return extractMessage(nested) ?? trimmed;
+    }
+    return trimmed;
+  }
+
+  if (Array.isArray(value)) {
+    const messages = value.map((entry) => extractMessage(entry)).filter((entry): entry is string => Boolean(entry));
+    return messages.length ? messages.join(", ") : undefined;
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    if ("message" in record) {
+      const msg = extractMessage(record.message);
+      if (msg) return msg;
+    }
+    if (typeof record.error === "string") {
+      return record.error;
+    }
+    if (typeof record.code === "string") {
+      return record.code;
+    }
+  }
+
+  return undefined;
+};
+
 const req = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const res = await fetch(`${API_URL}${path}`, {
     headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
@@ -14,24 +55,48 @@ const req = async <T>(path: string, init?: RequestInit): Promise<T> => {
   });
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : undefined;
+  const data = text ? parseJson(text) : undefined;
 
   if (!res.ok) {
-    throw new ApiError(data?.message ?? "Request failed", res.status);
+    const message = extractMessage(data ?? text) ?? `Request failed (${res.status})`;
+    throw new ApiError(message, res.status);
   }
 
-  return data as T;
+  return (data ?? text) as T;
 };
 
 export const api = {
   getLiveMarkets: () => req<Market[]>("/markets/live"),
   getMarket: (marketId: string) => req<Market>(`/markets/${marketId}`),
-  getBets: (userId: string) => req<Bet[]>(`/bets/${userId}`),
+  getBets: (userId: string) => req<Bet[]>(`/picks/${userId}`),
+  getPicks: (userId: string) => req<Bet[]>(`/picks/${userId}`),
+  getUser: (userId: string) => req<UserAccount>(`/users/${userId}`),
+  getUserStats: (userId: string) => req<UserStats>(`/users/${userId}/stats`),
   getWallet: (userId: string) => req<Wallet>(`/users/${userId}/wallet`),
+  createUser: (payload: { username: string; pin: string }) =>
+    req<{ user: UserAccount; wallet: Wallet }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  login: (payload: { username: string; pin: string }) =>
+    req<{ user: UserAccount; wallet: Wallet }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  addFunds: (userId: string, amount: number) =>
+    req<{ wallet: Wallet }>(`/users/${userId}/funds/add`, {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    }),
+  withdrawFunds: (userId: string, amount: number) =>
+    req<{ wallet: Wallet }>(`/users/${userId}/funds/withdraw`, {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    }),
   quote: (payload: BetRequest) =>
     req<BetQuote>("/quotes", { method: "POST", body: JSON.stringify(payload) }),
   placeBet: (payload: BetRequest) =>
-    req<Bet>("/bets", { method: "POST", body: JSON.stringify(payload) }),
+    req<Bet>("/picks", { method: "POST", body: JSON.stringify(payload) }),
   triggerStarter: (payload?: {
     sport?: "F1" | "Stocks";
     event_type?: string;
