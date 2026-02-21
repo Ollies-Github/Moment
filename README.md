@@ -13,7 +13,6 @@ Mobile now has two primary screens:
 From repo root:
 
 ```bash
-cd /Users/ollie/Documents/Personal/Projects/Moment
 pnpm --dir apps/mobile install --no-frozen-lockfile
 ```
 
