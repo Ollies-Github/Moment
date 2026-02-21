@@ -9,3 +9,9 @@ apps/mobile/.expo-shared
 apps/mobile/dist
 apps/api/pnpm-lock.yaml
 apps/mobile/pnpm-lock.yaml
+apps/vision-agent/.venv/
+clips/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.python-version

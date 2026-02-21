@@ -58,6 +58,8 @@ EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm --dir apps/mobile de
 - `POST /dev/simulate/close-market`
 - `POST /dev/simulate/settle-market`
 - `POST /dev/simulate/reset`
+- `POST /starter/events`
+- `POST /closer/resolutions`
 
 ## WebSocket events
 - `market.opened`

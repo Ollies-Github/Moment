@@ -10,10 +10,14 @@ import type {
   MarketType,
   PublicUserAccount,
   PublishEventName,
+  ResolutionSignalInput,
   Selection,
+  Sport,
   StarterInput,
+  StarterSignalInput,
   StreamStatus,
   UserAccount,
+  TriggerType,
   Wallet,
 } from "./types";
 
@@ -23,6 +27,20 @@ const DEFAULT_INITIAL_PROBABILITY = 0.5;
 const DEFAULT_STARTING_BALANCE = 100;
 const DEFAULT_DEMO_PIN = "1234";
 const ACCOUNTS_FILE = resolve(process.cwd(), "data", "accounts.json");
+const MIN_MARKET_DURATION_MS = 30_000;
+const MAX_MARKET_DURATION_MS = 900_000;
+
+const triggerToEventType = (triggerType: TriggerType): string => {
+  if (triggerType === "YELLOW_FLAG_START") return "yellow_flag_start";
+  if (triggerType === "PIT_STATE_CHANGE") return "pit_state_change";
+  if (triggerType === "SAFETY_CAR_START") return "safety_car_start";
+  return "battle_window_start";
+};
+
+const displayName = (value: unknown): string => {
+  if (typeof value !== "string" || value.trim().length === 0) return "the driver";
+  return value.trim();
+};
 
 const F1_DRIVERS = [
   ["Norris", "Verstappen"],
@@ -115,6 +133,7 @@ export interface PlaceBetResult {
 interface MarketEngineOptions {
   maxOpenDurationMs?: number;
   safetySweepIntervalMs?: number;
+  triggerCooldownMs?: number;
 }
 
 interface MarketEngineDeps {
@@ -126,12 +145,14 @@ export class MarketEngine {
   private readonly publish: (eventName: PublishEventName, payload: unknown) => void;
   private readonly maxOpenDurationMs: number;
   private readonly safetySweepIntervalMs: number;
+  private readonly triggerCooldownMs: number;
 
   private readonly markets = new Map<string, Market>();
   private readonly bets = new Map<string, Bet>();
   private readonly betsByUser = new Map<string, string[]>();
   private readonly wallets = new Map<string, Wallet>();
   private readonly users = new Map<string, UserAccount>();
+  private readonly triggerCooldowns = new Map<string, number>();
 
   private safetyHandle?: NodeJS.Timeout;
 
@@ -145,7 +166,7 @@ export class MarketEngine {
     this.publish = publish;
     this.maxOpenDurationMs = options.maxOpenDurationMs ?? 90_000;
     this.safetySweepIntervalMs = options.safetySweepIntervalMs ?? 2_000;
-
+    this.triggerCooldownMs = options.triggerCooldownMs ?? 45_000;
     this.loadState();
     if (!this.findUserByUsername("demo")) {
       this.ensureUser("demo-user-001", "demo", DEFAULT_DEMO_PIN);
@@ -353,6 +374,37 @@ export class MarketEngine {
     return market;
   }
 
+  ingestStarterSignal(signal: StarterSignalInput): { market?: Market; deduped: boolean; reason?: string } {
+    const now = Date.now();
+    const lastSeen = this.triggerCooldowns.get(signal.cooldown_key);
+    if (typeof lastSeen === "number" && now - lastSeen < this.triggerCooldownMs) {
+      return { deduped: true, reason: "cooldown_active" };
+    }
+
+    const eventType = triggerToEventType(signal.trigger_type);
+    const market = this.simulateStarterEvent({
+      sport: "F1",
+      event_type: eventType,
+      session_id: signal.session_id,
+      open_duration_ms: signal.market_duration_ms,
+      context: {
+        source_trigger_type: signal.trigger_type,
+        source_event_id: signal.event_id,
+        source_timestamp_ms: signal.timestamp_ms,
+        source_confidence: signal.confidence,
+        lap: signal.lap,
+        lap_start: signal.lap,
+        driver: signal.driver,
+        rival_driver: signal.rival_driver,
+        window_seconds: Math.round(signal.market_duration_ms / 1000),
+        ...(signal.context ?? {}),
+      },
+    });
+
+    this.triggerCooldowns.set(signal.cooldown_key, now);
+    return { market, deduped: false };
+  }
+
   closeMarket(marketId: string, reason = "backend_signal"): Market | undefined {
     const market = this.markets.get(marketId);
     if (!market) return undefined;
@@ -368,7 +420,7 @@ export class MarketEngine {
     return market;
   }
 
-  async settleMarket(marketId: string, outcome: Selection): Promise<Market | undefined> {
+  async settleMarket(marketId: string, outcome: Selection, options: { skipOracleCheck?: boolean } = {}): Promise<Market | undefined> {
     const market = this.markets.get(marketId);
     if (!market) return undefined;
 
@@ -376,7 +428,7 @@ export class MarketEngine {
     if (market.status !== "closed" && market.status !== "suspended") return market;
 
     await new Promise((resolve) => setTimeout(resolve, 300));
-    const oracleConfirmed = Math.random() <= 0.95;
+    const oracleConfirmed = options.skipOracleCheck ? true : Math.random() <= 0.95;
     if (!oracleConfirmed) {
       market.status = "suspended";
       market.timestamps.updated_at_ms = Date.now();
@@ -415,8 +467,29 @@ export class MarketEngine {
     return market;
   }
 
+  async ingestResolutionSignal(signal: ResolutionSignalInput): Promise<Market | undefined> {
+    const market = this.markets.get(signal.market_id);
+    if (!market) return undefined;
+
+    market.context = {
+      ...market.context,
+      resolution_event_id: signal.event_id,
+      resolution_confidence: signal.confidence,
+      resolution_reason: signal.reason ?? "vision_signal",
+      resolution_context: signal.context ?? {},
+      resolved_at_ms: signal.resolved_at_ms ?? Date.now(),
+    };
+    this.markets.set(market.market_id, market);
+
+    return this.settleMarket(signal.market_id, signal.outcome, { skipOracleCheck: true });
+  }
+
   reset(): void {
     this.markets.clear();
+    this.bets.clear();
+    this.betsByUser.clear();
+    this.triggerCooldowns.clear();
+    this.persistState();
     this.seed();
   }
 
@@ -534,22 +607,45 @@ export class MarketEngine {
   private buildMarketFromStarter(input: StarterInput): Market {
     const now = Date.now();
     const starter_event_id = randomUUID();
-    const context = { ...(input.context ?? {}) };
+    const context: Record<string, unknown> = {
+      source_event_type: input.event_type,
+      ...(input.context ?? {}),
+    };
     let market_type: MarketType = "binary_yes_no";
     let question = "Will this resolve to YES?";
 
     if (input.sport === "F1") {
-      const [driverA, driverB] = Array.isArray(context.drivers) ? (context.drivers as string[]) : pick(F1_DRIVERS);
-      const laps =
-        typeof context.laps === "number"
-          ? Math.max(1, Math.floor(context.laps))
-          : pick([1, 2, 3, 5]);
-      const a = typeof context.driver_a === "string" ? context.driver_a : driverA;
-      const b = typeof context.driver_b === "string" ? context.driver_b : driverB;
-      context.driver_a = a;
-      context.driver_b = b;
-      context.laps = laps;
-      question = `Will ${a} overtake ${b} within ${laps} laps?`;
+      if (input.event_type === "yellow_flag_start") {
+        const seconds = typeof context.window_seconds === "number" ? context.window_seconds : 60;
+        market_type = "binary_yes_no";
+        question = `Will this yellow escalate to Safety Car in ${Math.round(seconds)}s?`;
+      } else if (input.event_type === "pit_state_change") {
+        const driver = displayName(context.driver);
+        const rival = displayName(context.rival_driver);
+        market_type = "binary_yes_no";
+        question = `Will ${driver} rejoin ahead of ${rival}?`;
+      } else if (input.event_type === "battle_window_start") {
+        const attacker = displayName(context.driver);
+        const defender = displayName(context.rival_driver);
+        market_type = "binary_yes_no";
+        question = `Will ${attacker} overtake ${defender} within the next lap?`;
+      } else if (input.event_type === "safety_car_start") {
+        market_type = "binary_higher_lower";
+        question = "Will Safety Car duration be over or under 3.5 laps?";
+      } else {
+        const [driverA, driverB] = Array.isArray(context.drivers) ? (context.drivers as string[]) : pick(F1_DRIVERS);
+        const laps =
+          typeof context.laps === "number"
+            ? Math.max(1, Math.floor(context.laps))
+            : pick([1, 2, 3, 5]);
+        const a = typeof context.driver_a === "string" ? context.driver_a : driverA;
+        const b = typeof context.driver_b === "string" ? context.driver_b : driverB;
+        context.driver_a = a;
+        context.driver_b = b;
+        context.laps = laps;
+        market_type = "binary_yes_no";
+        question = `Will ${a} overtake ${b} within ${laps} laps?`;
+      }
     }
 
     if (input.sport === "Stocks") {
@@ -565,6 +661,9 @@ export class MarketEngine {
     }
 
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
+    const requestedDurationMs =
+      typeof input.open_duration_ms === "number" ? input.open_duration_ms : this.maxOpenDurationMs;
+    const marketDurationMs = clamp(requestedDurationMs, MIN_MARKET_DURATION_MS, MAX_MARKET_DURATION_MS);
     const amm_state = createAmmState(DEFAULT_INITIAL_PROBABILITY, DEFAULT_VIRTUAL_LIQUIDITY, DEFAULT_FEE_BPS);
 
     return {
@@ -573,10 +672,7 @@ export class MarketEngine {
       session_id: input.session_id ?? `${input.sport.toLowerCase()}-session-${now}`,
       market_type,
       question,
-      context: {
-        source_event_type: input.event_type,
-        ...context,
-      },
+      context,
       open_at_ms: now,
       settlement_key: `${input.sport.toLowerCase()}_${input.event_type}`,
       starter_event_id,
@@ -598,8 +694,8 @@ export class MarketEngine {
         updated_at_ms: now,
       },
       safety: {
-        max_open_duration_ms: this.maxOpenDurationMs,
-        expires_at_ms: now + this.maxOpenDurationMs,
+        max_open_duration_ms: marketDurationMs,
+        expires_at_ms: now + marketDurationMs,
         timeout_triggered: false,
       },
     };

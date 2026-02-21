@@ -8,7 +8,9 @@ import {
   loginBodySchema,
   marketIdParamSchema,
   quoteRequestSchema,
+  resolutionSignalBodySchema,
   settleMarketBodySchema,
+  starterSignalBodySchema,
   starterEventBodySchema,
   userFundsBodySchema,
   userIdParamSchema,
@@ -174,6 +176,7 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
       event_type: body.data.event_type ?? fallbackEventType,
       session_id: body.data.session_id,
       context: body.data.context,
+      open_duration_ms: body.data.open_duration_ms,
     });
 
     return { ok: true, market };
@@ -213,5 +216,34 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
   fastify.post("/dev/simulate/reset", async () => {
     engine.reset();
     return { ok: true };
+  });
+
+  fastify.post("/starter/events", async (request, reply) => {
+    const body = starterSignalBodySchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    const result = engine.ingestStarterSignal(body.data);
+    return {
+      ok: true,
+      deduped: result.deduped,
+      reason: result.reason,
+      market: result.market,
+    };
+  });
+
+  fastify.post("/closer/resolutions", async (request, reply) => {
+    const body = resolutionSignalBodySchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    const market = await engine.ingestResolutionSignal(body.data);
+    if (!market) {
+      return reply.code(404).send({ message: "Market not found" });
+    }
+
+    return { ok: true, market };
   });
 };
