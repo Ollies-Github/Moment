@@ -1,0 +1,8 @@
+node_modules
+.DS_Store
+*.log
+apps/api/node_modules
+apps/mobile/node_modules
+apps/mobile/.expo
+apps/mobile/.expo-shared
+apps/mobile/dist
