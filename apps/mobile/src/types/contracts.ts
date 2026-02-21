@@ -78,12 +78,6 @@ export type UserAccount = {
   updated_at_ms: number;
 };
 
-export type UserStats = {
-  lifetime_picks: number;
-  won: number;
-  lost: number;
-};
-
 export type BetRequest = {
   user_id: string;
   market_id: string;

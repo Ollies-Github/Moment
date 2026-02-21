@@ -25,7 +25,7 @@ export function AppNavigator() {
         tabBarInactiveTintColor: colors.muted,
         tabBarIcon: ({ color, size }) => {
           const name =
-            route.name === "F1"
+            route.name === "Sports"
               ? "speedometer"
               : route.name === "Stocks"
                 ? "trending-up"
@@ -36,7 +36,7 @@ export function AppNavigator() {
         },
       })}
     >
-      <Tabs.Screen name="F1" component={F1Screen} />
+      <Tabs.Screen name="Sports" component={F1Screen} />
       <Tabs.Screen name="Stocks" component={StocksScreen} />
       <Tabs.Screen name="Profile" component={ProfileScreen} />
       <Tabs.Screen name="Dev" component={DevScreen} />

@@ -4,12 +4,9 @@
   "version": "1.0.0",
   "packageManager": "pnpm@10.6.2",
   "scripts": {
-    "setup": "pnpm --dir apps/api install && pnpm --dir apps/mobile install",
-    "dev": "concurrently -k -n API,MOBILE \"pnpm dev:api\" \"pnpm dev:mobile\"",
+    "setup": "pnpm --dir apps/api install --lockfile=false && pnpm --dir apps/mobile install --lockfile=false",
+    "dev": "sh -c 'pnpm dev:api & pnpm dev:mobile; wait'",
     "dev:api": "pnpm --dir apps/api dev",
     "dev:mobile": "pnpm --dir apps/mobile dev"
-  },
-  "devDependencies": {
-    "concurrently": "^9.1.2"
   }
 }

@@ -30,7 +30,6 @@ export default function App() {
   const setBets = useAppStore((s) => s.setBets);
   const setWallet = useAppStore((s) => s.setWallet);
   const setAccount = useAppStore((s) => s.setAccount);
-  const setStats = useAppStore((s) => s.setStats);
   const setConnection = useAppStore((s) => s.setConnection);
   const upsertMarket = useAppStore((s) => s.upsertMarket);
   const upsertBet = useAppStore((s) => s.upsertBet);
@@ -46,19 +45,17 @@ export default function App() {
     const bootstrap = async () => {
       setConnection("connecting");
       try {
-        const [markets, bets, wallet, account, stats] = await Promise.all([
+        const [markets, bets, wallet, account] = await Promise.all([
           api.getLiveMarkets(),
           api.getBets(userId),
           api.getWallet(userId),
           api.getUser(userId),
-          api.getUserStats(userId),
         ]);
         if (dead) return;
         setMarkets(markets);
         setBets(bets);
         setWallet(wallet);
         setAccount(account);
-        setStats(stats);
       } catch {
         if (!dead) setConnection("disconnected");
       }
@@ -81,7 +78,7 @@ export default function App() {
       dead = true;
       socket.disconnect();
     };
-  }, [isAuthenticated, setAccount, setBets, setConnection, setMarkets, setStats, setWallet, upsertBet, upsertMarket, userId]);
+  }, [isAuthenticated, setAccount, setBets, setConnection, setMarkets, setWallet, upsertBet, upsertMarket, userId]);
 
   return (
     <SafeAreaProvider>

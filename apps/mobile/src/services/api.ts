@@ -1,4 +1,4 @@
-import type { Bet, BetQuote, BetRequest, Market, Selection, UserAccount, UserStats, Wallet } from "../types/contracts";
+import type { Bet, BetRequest, Market, Selection, UserAccount, Wallet } from "../types/contracts";
 import { API_URL } from "../utils/network";
 
 class ApiError extends Error {
@@ -69,9 +69,7 @@ export const api = {
   getLiveMarkets: () => req<Market[]>("/markets/live"),
   getMarket: (marketId: string) => req<Market>(`/markets/${marketId}`),
   getBets: (userId: string) => req<Bet[]>(`/picks/${userId}`),
-  getPicks: (userId: string) => req<Bet[]>(`/picks/${userId}`),
   getUser: (userId: string) => req<UserAccount>(`/users/${userId}`),
-  getUserStats: (userId: string) => req<UserStats>(`/users/${userId}/stats`),
   getWallet: (userId: string) => req<Wallet>(`/users/${userId}/wallet`),
   createUser: (payload: { username: string; pin: string }) =>
     req<{ user: UserAccount; wallet: Wallet }>("/auth/register", {
@@ -93,8 +91,6 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ amount }),
     }),
-  quote: (payload: BetRequest) =>
-    req<BetQuote>("/quotes", { method: "POST", body: JSON.stringify(payload) }),
   placeBet: (payload: BetRequest) =>
     req<Bet>("/picks", { method: "POST", body: JSON.stringify(payload) }),
   triggerStarter: (payload?: {

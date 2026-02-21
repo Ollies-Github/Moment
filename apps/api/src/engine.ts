@@ -100,12 +100,6 @@ type PersistedState = {
   picks: Bet[];
 };
 
-export type UserStats = {
-  lifetime_picks: number;
-  won: number;
-  lost: number;
-};
-
 export class EngineError extends Error {
   constructor(message: string, readonly statusCode: number) {
     super(message);
@@ -211,17 +205,6 @@ export class MarketEngine {
     return this.toPublicUser(user);
   }
 
-  getUserStats(userId: string): UserStats {
-    const all = this.getBetsForUser(userId).filter((pick) => pick.status !== "rejected");
-    const won = all.filter((pick) => pick.status === "settled_won").length;
-    const lost = all.filter((pick) => pick.status === "settled_lost").length;
-    return {
-      lifetime_picks: all.length,
-      won,
-      lost,
-    };
-  }
-
   registerUser(username: string, pin: string): { user: PublicUserAccount; wallet: Wallet } {
     const cleanedUsername = username.trim();
     const cleanedPin = pin.trim();
@@ -307,7 +290,6 @@ export class MarketEngine {
         reason: rejectedBet.rejection_reason,
         rejected_at_ms: Date.now(),
       });
-      this.publish("pick.rejected" as PublishEventName, rejectedBet);
       return { rejectedBet };
     }
 
@@ -319,12 +301,6 @@ export class MarketEngine {
     const wallet = this.ensureWallet(request.user_id);
     if (wallet.balance < request.stake) {
       this.emit("bet.rejected", {
-        market_id: request.market_id,
-        user_id: request.user_id,
-        reason: "Insufficient wallet balance",
-        rejected_at_ms: Date.now(),
-      });
-      this.publish("pick.rejected" as PublishEventName, {
         market_id: request.market_id,
         user_id: request.user_id,
         reason: "Insufficient wallet balance",
@@ -365,7 +341,6 @@ export class MarketEngine {
 
     this.emit("market.updated", market);
     this.emit("bet.accepted", bet);
-    this.publish("pick.accepted" as PublishEventName, bet);
     this.emit("wallet.updated", wallet);
 
     return { bet };

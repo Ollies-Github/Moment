@@ -1,71 +1,66 @@
-# Moment MVP (Clean Reset)
+# Moment MVP
 
-This is a clean rewrite with only:
-- `apps/api` (Fastify + socket.io backend)
-- `apps/mobile` (Expo SDK 54 app)
+Minimal setup with only two apps:
+- `/Users/ollie/Documents/Personal/Projects/Moment/apps/api` (Fastify + socket.io)
+- `/Users/ollie/Documents/Personal/Projects/Moment/apps/mobile` (Expo SDK 54)
 
-Mobile now has two primary screens:
-- `F1` tab: overtake-in-X-laps markets (YES/NO)
-- `Stocks` tab: volatile stock direction markets (UP/DOWN) with embedded TradingView chart
-- `Account` tab: wallet total + account creation
-
-## 1) Install
-
-From repo root:
+## Install
+From `/Users/ollie/Documents/Personal/Projects/Moment`:
 
 ```bash
-pnpm --dir apps/mobile install --no-frozen-lockfile
+pnpm --dir apps/api install --lockfile=false
+pnpm --dir apps/mobile install --lockfile=false
 ```
 
-## 2) Run
-
+## Run
 Terminal A:
 
 ```bash
-pnpm dev:api
+pnpm --dir apps/api dev
 ```
 
 Terminal B:
 
 ```bash
-pnpm dev:mobile
+pnpm --dir apps/mobile dev
 ```
 
-## 3) iPhone (Expo Go)
+## iPhone (Expo Go)
+1. Install Expo Go (SDK 54).
+2. Keep iPhone and Mac on the same Wi-Fi.
+3. Run `pnpm --dir apps/mobile dev` and scan the QR.
 
-- Install Expo Go (SDK 54 compatible version).
-- Keep Mac + iPhone on same Wi-Fi.
-- Scan QR from `pnpm dev:mobile`.
-
-If API is not reachable from phone:
+If phone cannot reach API:
 
 ```bash
-EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm dev:mobile
+EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm --dir apps/mobile dev
 ```
 
-## API endpoints
+## Current mobile tabs
+- Sports
+- Stocks
+- Profile
+- Dev
 
-- `GET /health`
+## API endpoints in use
+- `POST /auth/register`
+- `POST /auth/login`
 - `GET /markets/live`
 - `GET /markets/:marketId`
 - `POST /quotes`
-- `POST /bets`
-- `GET /bets/:userId`
-- `GET /users/:userId/wallet`
+- `POST /picks`
+- `GET /picks/:userId`
 - `GET /users/:userId`
-- `POST /users`
+- `GET /users/:userId/wallet`
+- `POST /users/:userId/funds/add`
+- `POST /users/:userId/funds/withdraw`
 - `GET /events/stream-status`
 - `POST /dev/simulate/starter-event`
 - `POST /dev/simulate/close-market`
 - `POST /dev/simulate/settle-market`
 - `POST /dev/simulate/reset`
 
-To spawn markets from the app UI:
-- Dev tab: `Generate F1 Overtake Market`
-- Dev tab: `Generate Stock Market`
-
 ## WebSocket events
-
 - `market.opened`
 - `market.updated`
 - `market.closed`

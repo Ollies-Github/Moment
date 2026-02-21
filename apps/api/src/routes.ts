@@ -71,13 +71,7 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
     return result.bet;
   };
 
-  fastify.post("/bets", handlePlacePick);
   fastify.post("/picks", handlePlacePick);
-
-  fastify.get("/bets/:userId", async (request) => {
-    const { userId } = userIdParamSchema.parse(request.params);
-    return engine.getBetsForUser(userId);
-  });
 
   fastify.get("/picks/:userId", async (request) => {
     const { userId } = userIdParamSchema.parse(request.params);
@@ -92,22 +86,6 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
   fastify.get("/users/:userId", async (request) => {
     const { userId } = userIdParamSchema.parse(request.params);
     return engine.getUser(userId);
-  });
-
-  fastify.post("/users", async (request, reply) => {
-    const body = createUserBodySchema.safeParse(request.body ?? {});
-    if (!body.success) {
-      return reply.code(400).send({ message: body.error.message });
-    }
-
-    try {
-      return engine.registerUser(body.data.username, body.data.pin);
-    } catch (error) {
-      if (error instanceof EngineError) {
-        return reply.code(error.statusCode).send({ message: error.message });
-      }
-      throw error;
-    }
   });
 
   fastify.post("/auth/register", async (request, reply) => {
@@ -140,11 +118,6 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
       }
       throw error;
     }
-  });
-
-  fastify.get("/users/:userId/stats", async (request) => {
-    const { userId } = userIdParamSchema.parse(request.params);
-    return engine.getUserStats(userId);
   });
 
   fastify.post("/users/:userId/funds/add", async (request, reply) => {
