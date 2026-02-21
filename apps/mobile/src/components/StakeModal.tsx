@@ -121,10 +121,9 @@ export function StakeModal({ visible, market, selection, userId, onClose, onDone
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingBottom: 10,
     backgroundColor: "rgba(2,5,10,0.92)",
   },
   sheet: {
