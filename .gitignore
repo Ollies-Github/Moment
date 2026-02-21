@@ -17,3 +17,9 @@ clips/
 .python-version
 apps/api/pnpm-lock.yaml
 apps/mobile/pnpm-lock.yaml
+apps/vision-agent/.venv/
+clips/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.python-version
