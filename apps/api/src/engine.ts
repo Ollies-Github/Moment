@@ -84,20 +84,16 @@ const getQuote = (amm: AmmState, selection: Selection, stake: number) => {
   };
 };
 
-const template = (sport: Sport, eventType: string): { market_type: MarketType; question: string } => {
-  if (sport === "F1") {
-    if (eventType === "overtake_attempt") {
-      return { market_type: "binary_yes_no", question: "Will Norris overtake Verstappen this lap?" };
-    }
-    return { market_type: "binary_higher_lower", question: "Will this pit stop be under 2.5s?" };
-  }
+const F1_DRIVERS = [
+  ["Norris", "Verstappen"],
+  ["Leclerc", "Piastri"],
+  ["Hamilton", "Russell"],
+  ["Sainz", "Alonso"],
+] as const;
 
-  if (eventType === "penalty_awarded") {
-    return { market_type: "binary_yes_no", question: "Will the penalty go in?" };
-  }
+const VOLATILE_STOCKS = ["TSLA", "NVDA", "COIN", "MSTR", "PLTR", "SMCI"] as const;
 
-  return { market_type: "binary_yes_no", question: "Will this goal be disallowed by VAR?" };
-};
+const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 export class EngineError extends Error {
   constructor(message: string, readonly statusCode: number) {
@@ -372,9 +368,10 @@ export class MarketEngine {
 
   seed(): void {
     const seedInputs: StarterInput[] = [
-      { sport: "Football", event_type: "goal_disallowed_candidate" },
-      { sport: "Football", event_type: "penalty_awarded" },
-      { sport: "F1", event_type: "overtake_attempt" },
+      { sport: "F1", event_type: "overtake_in_x_laps", context: { laps: 2, driver_a: "Norris", driver_b: "Verstappen" } },
+      { sport: "F1", event_type: "overtake_in_x_laps", context: { laps: 3, driver_a: "Leclerc", driver_b: "Piastri" } },
+      { sport: "Stocks", event_type: "stock_up_down_window", context: { symbol: "TSLA", window_minutes: 5 } },
+      { sport: "Stocks", event_type: "stock_up_down_window", context: { symbol: "NVDA", window_minutes: 5 } },
     ];
 
     for (const starter of seedInputs) {
@@ -425,7 +422,38 @@ export class MarketEngine {
   private buildMarketFromStarter(input: StarterInput): Market {
     const now = Date.now();
     const starter_event_id = randomUUID();
-    const { market_type, question } = template(input.sport, input.event_type);
+    const context = { ...(input.context ?? {}) };
+    let market_type: MarketType = "binary_yes_no";
+    let question = "Will this resolve to YES?";
+
+    if (input.sport === "F1") {
+      const [driverA, driverB] = Array.isArray(context.drivers)
+        ? (context.drivers as string[])
+        : pick(F1_DRIVERS);
+      const laps =
+        typeof context.laps === "number"
+          ? Math.max(1, Math.floor(context.laps))
+          : pick([1, 2, 3, 5]);
+      const a = typeof context.driver_a === "string" ? context.driver_a : driverA;
+      const b = typeof context.driver_b === "string" ? context.driver_b : driverB;
+      context.driver_a = a;
+      context.driver_b = b;
+      context.laps = laps;
+      question = `Will ${a} overtake ${b} within ${laps} laps?`;
+    }
+
+    if (input.sport === "Stocks") {
+      market_type = "binary_higher_lower";
+      const symbol = typeof context.symbol === "string" ? context.symbol.toUpperCase() : pick(VOLATILE_STOCKS);
+      const windowMinutes =
+        typeof context.window_minutes === "number"
+          ? Math.max(1, Math.floor(context.window_minutes))
+          : 5;
+      context.symbol = symbol;
+      context.window_minutes = windowMinutes;
+      question = `Will price be HIGHER in the next ${windowMinutes} minutes?`;
+    }
+
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
 
     const amm_state = createAmmState(
@@ -442,7 +470,7 @@ export class MarketEngine {
       question,
       context: {
         source_event_type: input.event_type,
-        ...(input.context ?? {}),
+        ...context,
       },
       open_at_ms: now,
       settlement_key: `${input.sport.toLowerCase()}_${input.event_type}`,

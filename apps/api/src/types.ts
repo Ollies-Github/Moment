@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const sportSchema = z.enum(["F1", "Football"]);
+export const sportSchema = z.enum(["F1", "Stocks"]);
 export const marketTypeSchema = z.enum(["binary_yes_no", "binary_higher_lower"]);
 export const marketStatusSchema = z.enum(["open", "closed", "settled", "suspended"]);
 export const selectionSchema = z.enum(["YES", "NO", "HIGHER", "LOWER"]);

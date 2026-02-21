@@ -1,60 +1,156 @@
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
 import { colors } from "../theme/tokens";
 
+const STOCK_SYMBOLS = ["TSLA", "NVDA", "COIN", "MSTR", "PLTR", "SMCI"];
+const F1_PAIRS = [
+  ["Norris", "Verstappen"],
+  ["Leclerc", "Piastri"],
+  ["Hamilton", "Russell"],
+  ["Sainz", "Alonso"],
+] as const;
+const LAPS = [1, 2, 3, 5];
+
+const randomFrom = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
 export function DevScreen() {
-  const { markets, connection, setMarkets } = useAppStore();
+  const { userId, markets, connection, setMarkets, setBets, setWallet } = useAppStore();
+  const [busy, setBusy] = useState(false);
 
-  const firstOpen = markets.find((m) => m.status === "open");
-  const firstClosed = markets.find((m) => m.status === "closed");
+  const firstOpen = useMemo(() => markets.find((m) => m.status === "open"), [markets]);
+  const firstClosed = useMemo(() => markets.find((m) => m.status === "closed"), [markets]);
 
-  const refresh = async () => {
-    setMarkets(await api.getLiveMarkets());
-  };
+  const refresh = useCallback(async () => {
+    const [nextMarkets, nextBets, nextWallet] = await Promise.all([
+      api.getLiveMarkets(),
+      api.getBets(userId),
+      api.getWallet(userId),
+    ]);
+    setMarkets(nextMarkets);
+    setBets(nextBets);
+    setWallet(nextWallet);
+  }, [setBets, setMarkets, setWallet, userId]);
+
+  const run = useCallback(
+    async (task: () => Promise<void>) => {
+      setBusy(true);
+      try {
+        await task();
+        await refresh();
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 14, gap: 10 }}>
-      <Text style={styles.title}>Dev</Text>
-      <Text style={styles.meta}>Connection: {connection}</Text>
-      <Text style={styles.meta}>Markets: {markets.length}</Text>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Dev Controls</Text>
+        <Text style={styles.meta}>Connection: {connection}</Text>
+        <Text style={styles.meta}>Markets: {markets.length}</Text>
 
-      <Pressable style={styles.btn} onPress={() => api.triggerStarter()}>
-        <Text style={styles.btnText}>Trigger Starter Event</Text>
-      </Pressable>
+        <View style={styles.block}>
+          <Text style={styles.blockTitle}>Generate Markets</Text>
+          <Pressable
+            style={styles.btn}
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                const [driver_a, driver_b] = randomFrom(F1_PAIRS);
+                await api.triggerStarter({
+                  sport: "F1",
+                  event_type: "overtake_in_x_laps",
+                  context: {
+                    driver_a,
+                    driver_b,
+                    laps: randomFrom(LAPS),
+                  },
+                });
+              })
+            }
+          >
+            <Text style={styles.btnText}>Generate F1 Overtake Market</Text>
+          </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => firstOpen && api.closeMarket(firstOpen.market_id)}>
-        <Text style={styles.btnText}>Close First Open Market</Text>
-      </Pressable>
+          <Pressable
+            style={styles.btn}
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                await api.triggerStarter({
+                  sport: "Stocks",
+                  event_type: "stock_up_down_window",
+                  context: {
+                    symbol: randomFrom(STOCK_SYMBOLS),
+                    window_minutes: randomFrom([3, 5, 8, 10]),
+                  },
+                });
+              })
+            }
+          >
+            <Text style={styles.btnText}>Generate Stock Market</Text>
+          </Pressable>
+        </View>
 
-      <Pressable
-        style={styles.btn}
-        onPress={() => {
-          const target = firstClosed ?? firstOpen;
-          if (target) api.settleMarket(target.market_id);
-        }}
-      >
-        <Text style={styles.btnText}>Settle First Closed/Open Market</Text>
-      </Pressable>
+        <View style={styles.block}>
+          <Text style={styles.blockTitle}>Lifecycle</Text>
+          <Pressable
+            style={styles.btn}
+            disabled={busy || !firstOpen}
+            onPress={() =>
+              run(async () => {
+                if (firstOpen) await api.closeMarket(firstOpen.market_id);
+              })
+            }
+          >
+            <Text style={styles.btnText}>Close First Open Market</Text>
+          </Pressable>
 
-      <Pressable style={styles.btn} onPress={() => api.reset()}>
-        <Text style={styles.btnText}>Reset Simulation</Text>
-      </Pressable>
+          <Pressable
+            style={styles.btn}
+            disabled={busy || (!firstOpen && !firstClosed)}
+            onPress={() =>
+              run(async () => {
+                const target = firstClosed ?? firstOpen;
+                if (target) await api.settleMarket(target.market_id);
+              })
+            }
+          >
+            <Text style={styles.btnText}>Settle First Market</Text>
+          </Pressable>
 
-      <Pressable style={styles.btn} onPress={refresh}>
-        <Text style={styles.btnText}>Refresh Markets</Text>
-      </Pressable>
+          <Pressable
+            style={styles.btn}
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                await api.reset();
+              })
+            }
+          >
+            <Text style={styles.btnText}>Reset Simulation</Text>
+          </Pressable>
 
-      <View style={styles.block}>
-        {markets.map((m) => (
-          <View key={m.market_id} style={styles.row}>
-            <Text style={styles.rowText}>{m.question}</Text>
-            <Text style={styles.rowMeta}>{m.status}</Text>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
+          <Pressable
+            style={styles.btn}
+            disabled={busy}
+            onPress={() =>
+              run(async () => {
+                await Promise.resolve();
+              })
+            }
+          >
+            <Text style={styles.btnText}>Refresh</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -63,41 +159,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  content: {
+    padding: 14,
+    gap: 14,
+    paddingBottom: 130,
+  },
   title: {
     color: colors.text,
     fontSize: 30,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   meta: {
     color: colors.muted,
-  },
-  btn: {
-    backgroundColor: "#17324f",
-    padding: 12,
-    borderRadius: 10,
-  },
-  btnText: {
-    color: colors.text,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   block: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    marginTop: 8,
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+    backgroundColor: colors.surface,
   },
-  row: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    padding: 10,
-  },
-  rowText: {
+  blockTitle: {
     color: colors.text,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "800",
   },
-  rowMeta: {
-    color: colors.muted,
-    fontSize: 12,
+  btn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2b3b55",
+    backgroundColor: "#122033",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  btnText: {
+    color: colors.text,
+    fontWeight: "700",
+    fontSize: 13,
   },
 });

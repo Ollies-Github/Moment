@@ -88,9 +88,12 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
       return reply.code(400).send({ message: body.error.message });
     }
 
+    const sport = body.data.sport ?? "F1";
+    const fallbackEventType = sport === "Stocks" ? "stock_up_down_window" : "overtake_in_x_laps";
+
     const market = engine.simulateStarterEvent({
-      sport: body.data.sport ?? "Football",
-      event_type: body.data.event_type ?? "goal_disallowed_candidate",
+      sport,
+      event_type: body.data.event_type ?? fallbackEventType,
       session_id: body.data.session_id,
       context: body.data.context,
     });

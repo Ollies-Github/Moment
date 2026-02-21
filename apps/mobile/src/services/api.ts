@@ -32,7 +32,16 @@ export const api = {
     req<BetQuote>("/quotes", { method: "POST", body: JSON.stringify(payload) }),
   placeBet: (payload: BetRequest) =>
     req<Bet>("/bets", { method: "POST", body: JSON.stringify(payload) }),
-  triggerStarter: () => req("/dev/simulate/starter-event", { method: "POST", body: "{}" }),
+  triggerStarter: (payload?: {
+    sport?: "F1" | "Stocks";
+    event_type?: string;
+    session_id?: string;
+    context?: Record<string, unknown>;
+  }) =>
+    req("/dev/simulate/starter-event", {
+      method: "POST",
+      body: JSON.stringify(payload ?? {}),
+    }),
   closeMarket: (marketId: string) =>
     req("/dev/simulate/close-market", { method: "POST", body: JSON.stringify({ market_id: marketId }) }),
   settleMarket: (marketId: string, outcome?: Selection) =>

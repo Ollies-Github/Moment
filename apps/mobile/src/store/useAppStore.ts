@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { Bet, ConnectionState, Market, Selection, Wallet } from "../types/contracts";
+import type { Bet, ConnectionState, Market, Wallet } from "../types/contracts";
 
 type State = {
   userId: string;
@@ -8,17 +8,12 @@ type State = {
   bets: Bet[];
   wallet?: Wallet;
   connection: ConnectionState;
-  modalOpen: boolean;
-  modalMarket?: Market;
-  modalSelection?: Selection;
   setMarkets: (markets: Market[]) => void;
   upsertMarket: (market: Market) => void;
   setBets: (bets: Bet[]) => void;
   upsertBet: (bet: Bet) => void;
   setWallet: (wallet: Wallet) => void;
   setConnection: (connection: ConnectionState) => void;
-  openModal: (market: Market, selection: Selection) => void;
-  closeModal: () => void;
 };
 
 const byUpdated = (a: Market, b: Market) => b.timestamps.updated_at_ms - a.timestamps.updated_at_ms;
@@ -28,7 +23,6 @@ export const useAppStore = create<State>((set) => ({
   markets: [],
   bets: [],
   connection: "connecting",
-  modalOpen: false,
   setMarkets: (markets) => set({ markets: [...markets].sort(byUpdated) }),
   upsertMarket: (market) =>
     set((state) => ({
@@ -41,6 +35,4 @@ export const useAppStore = create<State>((set) => ({
     })),
   setWallet: (wallet) => set({ wallet }),
   setConnection: (connection) => set({ connection }),
-  openModal: (modalMarket, modalSelection) => set({ modalOpen: true, modalMarket, modalSelection }),
-  closeModal: () => set({ modalOpen: false, modalMarket: undefined, modalSelection: undefined }),
 }));

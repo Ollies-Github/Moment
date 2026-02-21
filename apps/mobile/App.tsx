@@ -8,6 +8,19 @@ import { AppNavigator } from "./src/navigation/AppNavigator";
 import { api } from "./src/services/api";
 import { connectSocket } from "./src/services/socket";
 import { useAppStore } from "./src/store/useAppStore";
+import { colors } from "./src/theme/tokens";
+
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.bg,
+    card: colors.bgElevated,
+    border: colors.border,
+    text: colors.text,
+    primary: colors.accentBlue,
+  },
+};
 
 export default function App() {
   const userId = useAppStore((s) => s.userId);
@@ -60,7 +73,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <NavigationContainer theme={DarkTheme}>
+      <NavigationContainer theme={navTheme}>
         <AppNavigator />
       </NavigationContainer>
     </SafeAreaProvider>

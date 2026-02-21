@@ -1,4 +1,4 @@
-export type Sport = "F1" | "Football";
+export type Sport = "F1" | "Stocks";
 export type MarketType = "binary_yes_no" | "binary_higher_lower";
 export type MarketStatus = "open" | "closed" | "settled" | "suspended";
 export type Selection = "YES" | "NO" | "HIGHER" | "LOWER";

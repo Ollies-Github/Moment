@@ -4,13 +4,17 @@ This is a clean rewrite with only:
 - `apps/api` (Fastify + socket.io backend)
 - `apps/mobile` (Expo SDK 54 app)
 
+Mobile now has two primary screens:
+- `F1` tab: overtake-in-X-laps markets (YES/NO)
+- `Stocks` tab: volatile stock direction markets (UP/DOWN) with embedded TradingView chart
+
 ## 1) Install
 
 From repo root:
 
 ```bash
-pnpm install
-pnpm setup
+cd /Users/ollie/Documents/Personal/Projects/Moment
+pnpm --dir apps/mobile install --no-frozen-lockfile
 ```
 
 ## 2) Run
@@ -53,6 +57,10 @@ EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm dev:mobile
 - `POST /dev/simulate/close-market`
 - `POST /dev/simulate/settle-market`
 - `POST /dev/simulate/reset`
+
+To spawn markets from the app UI:
+- Dev tab: `Generate F1 Overtake Market`
+- Dev tab: `Generate Stock Market`
 
 ## WebSocket events
 

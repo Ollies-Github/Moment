@@ -1,0 +1,178 @@
+import { useCallback, useMemo, useState } from "react";
+import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { MarketCard } from "../components/MarketCard";
+import { StakeModal } from "../components/StakeModal";
+import { api } from "../services/api";
+import { useAppStore } from "../store/useAppStore";
+import { colors } from "../theme/tokens";
+import type { Market, Selection } from "../types/contracts";
+
+export function F1Screen() {
+  const { userId, markets, bets, wallet, setMarkets, setBets, setWallet } = useAppStore();
+  const [modalMarket, setModalMarket] = useState<Market>();
+  const [modalSelection, setModalSelection] = useState<Selection>();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activePick, setActivePick] = useState<{ marketId: string; selection: Selection }>();
+
+  const f1Markets = useMemo(
+    () =>
+      markets.filter(
+        (market) =>
+          market.sport === "F1" &&
+          String(market.context.source_event_type ?? "") === "overtake_in_x_laps",
+      ),
+    [markets],
+  );
+
+  const f1MarketIds = useMemo(() => new Set(f1Markets.map((m) => m.market_id)), [f1Markets]);
+  const f1Bets = useMemo(() => bets.filter((bet) => f1MarketIds.has(bet.market_id)).slice(0, 4), [bets, f1MarketIds]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [nextMarkets, nextBets, nextWallet] = await Promise.all([
+        api.getLiveMarkets(),
+        api.getBets(userId),
+        api.getWallet(userId),
+      ]);
+
+      setMarkets(nextMarkets);
+      setBets(nextBets);
+      setWallet(nextWallet);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [setBets, setMarkets, setWallet, userId]);
+
+  const openStake = useCallback((market: Market, selection: Selection) => {
+    setModalMarket(market);
+    setModalSelection(selection);
+    setActivePick({ marketId: market.market_id, selection });
+    setModalVisible(true);
+  }, []);
+
+  const closeStake = useCallback(() => {
+    setModalVisible(false);
+    setActivePick(undefined);
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <LinearGradient colors={["#091321", "#060b12"]} style={styles.hero}>
+        <View style={styles.heroTop}>
+          <Text style={styles.title}>Sports</Text>
+        </View>
+        <Text style={styles.subtitle}>Overtake in X laps markets only</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.meta}>Wallet {wallet?.balance.toFixed(2) ?? "--"}</Text>
+          <Text style={styles.meta}>{f1Bets.length} active tickets</Text>
+        </View>
+      </LinearGradient>
+
+      <FlatList
+        data={f1Markets}
+        keyExtractor={(item) => item.market_id}
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accentBlue} />}
+        renderItem={({ item }) => (
+          <MarketCard
+            market={item}
+            onPick={openStake}
+            variant="f1"
+            leftLabel="NO"
+            rightLabel="YES"
+            positiveOnRight
+            selectedSelection={activePick?.marketId === item.market_id ? activePick.selection : undefined}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No overtake markets live</Text>
+            <Text style={styles.emptyText}>Use the Dev tab to generate markets.</Text>
+          </View>
+        }
+      />
+
+      <StakeModal
+        visible={modalVisible}
+        market={modalMarket}
+        selection={modalSelection}
+        userId={userId}
+        onClose={closeStake}
+        onDone={async () => {
+          await refresh();
+          setActivePick(undefined);
+        }}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  hero: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  heroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: {
+    color: colors.text,
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+  },
+  subtitle: {
+    color: colors.muted,
+    fontWeight: "600",
+  },
+  metaRow: {
+    flexDirection: "row",
+    gap: 14,
+  },
+  meta: {
+    color: colors.text,
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  listContent: {
+    padding: 14,
+    gap: 10,
+    paddingBottom: 120,
+  },
+  emptyWrap: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.card,
+    marginTop: 20,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  emptyText: {
+    color: colors.muted,
+    textAlign: "center",
+  },
+});
