@@ -5,9 +5,17 @@ Live F1 flash-market sidecar focused on standardized world-feed graphics.
 ## MVP scope
 
 - Trigger: `SAFETY_CAR_START` from OCR banner detection.
-- Resolution: `SAFETY CAR ENDING` + lap delta settle (`OVER/UNDER 3.5 laps`).
+- Close: `SAFETY CAR ENDING` sends a direct close signal for the active market.
 - Frame rate target: 4-8 FPS.
 - Analyze-only mode logs timestamps and lap numbers without posting to API.
+
+## API contract used by vision
+
+- `POST /scanner/events` with `signal_type="create_bet"`:
+  - Parsed by API into starter pipeline (`/starter/events` equivalent).
+  - Opens a market when dedupe/cooldown allows.
+- `POST /scanner/events` with `signal_type="close_bet"`:
+  - Directly closes the target market (`engine.closeMarket`) without resolution pipeline.
 
 ## Install
 

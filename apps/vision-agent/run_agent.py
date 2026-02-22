@@ -10,7 +10,7 @@ import cv2
 from config import SafetyCarLapsConfig
 from detectors.yellow_flag import OcrReader, YellowFlagDetector
 from market_client import MarketClient
-from schemas import ResolutionSignal, StarterSignal
+from schemas import CloseBetSignal, CreateBetSignal
 from trigger_fsm import TriggerFSM
 
 
@@ -213,7 +213,7 @@ def main() -> None:
 
             if not args.analyze_only:
                 event_id = f"evt_{uuid4().hex[:8]}"
-                starter = StarterSignal(
+                starter = CreateBetSignal(
                     event_id=event_id,
                     trigger_type="SAFETY_CAR_START",
                     session_id=args.session_id,
@@ -225,12 +225,11 @@ def main() -> None:
                     context={
                         "ocr_text": sc_text,
                         "lap_start": lap,
-                        "market_line_laps": 3.5,
                         "detector": "safety_car_banner_ocr",
                     },
                 )
                 try:
-                    response = client.post_starter(starter)
+                    response = client.post_scanner_event(starter)
                     market = response.get("market")
                     if market:
                         active_market = ActiveSafetyCarMarket(
@@ -266,29 +265,23 @@ def main() -> None:
                     f"[sc_result] t_end={t_s:.2f}s lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta} wait_expired={wait_expired}"
                 )
                 if not args.analyze_only and active_market is not None:
-                    outcome = "NO"
-                    if isinstance(laps_delta, int) and laps_delta >= 4:
-                        outcome = "YES"
-                    resolution = ResolutionSignal(
+                    close_signal = CloseBetSignal(
                         event_id=f"res_{uuid4().hex[:8]}",
                         market_id=active_market.market_id,
-                        outcome=outcome,
-                        confidence=end_conf,
-                        resolved_at_ms=current_ms,
+                        timestamp_ms=current_ms,
                         reason="safety_car_ending_detected",
                         context={
                             "lap_start": lap_start,
                             "lap_end": lap_end,
                             "delta_laps": laps_delta,
-                            "over_3_5_laps": bool(isinstance(laps_delta, int) and laps_delta >= 4),
                             "ocr_text": end_text,
                         },
                     )
                     try:
-                        settled = client.post_resolution(resolution)
+                        closed = client.post_scanner_event(close_signal)
                         print(
-                            f"[closer] market={active_market.market_id} outcome={outcome} "
-                            f"status={(settled.get('market') or {}).get('status')} "
+                            f"[closer] market={active_market.market_id} "
+                            f"status={(closed.get('market') or {}).get('status')} "
                             f"lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta}"
                         )
                     except Exception as exc:

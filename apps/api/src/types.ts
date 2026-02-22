@@ -81,6 +81,36 @@ export const resolutionSignalBodySchema = z.object({
   context: z.record(z.string(), z.any()).optional(),
 });
 
+export const scannerCreateEventBodySchema = z.object({
+  event_id: z.string().min(1),
+  signal_type: z.literal("create_bet"),
+  sport: z.literal("F1").default("F1"),
+  trigger_type: triggerTypeSchema,
+  session_id: z.string().min(1),
+  timestamp_ms: z.number().nonnegative(),
+  lap: z.number().int().positive().optional(),
+  driver: z.string().optional(),
+  rival_driver: z.string().optional(),
+  confidence: z.number().min(0).max(1),
+  cooldown_key: z.string().min(1),
+  market_duration_ms: z.number().int().min(30_000).max(900_000).default(60_000),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const scannerCloseEventBodySchema = z.object({
+  event_id: z.string().min(1),
+  signal_type: z.literal("close_bet"),
+  market_id: z.string().min(1),
+  timestamp_ms: z.number().nonnegative().optional(),
+  reason: z.string().optional(),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const scannerEventBodySchema = z.discriminatedUnion("signal_type", [
+  scannerCreateEventBodySchema,
+  scannerCloseEventBodySchema,
+]);
+
 export type Sport = z.infer<typeof sportSchema>;
 export type MarketType = z.infer<typeof marketTypeSchema>;
 export type MarketStatus = z.infer<typeof marketStatusSchema>;
@@ -191,6 +221,7 @@ export type StarterInput = {
 
 export type StarterSignalInput = z.infer<typeof starterSignalBodySchema>;
 export type ResolutionSignalInput = z.infer<typeof resolutionSignalBodySchema>;
+export type ScannerEventInput = z.infer<typeof scannerEventBodySchema>;
 
 export type PublishEventName =
   | "market.opened"

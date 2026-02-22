@@ -1,20 +1,21 @@
 {
   "markets": [
     {
-      "market_id": "mkt_f1_1771745834657_31476b",
+      "market_id": "mkt_f1_1771747673054_2e1bc8",
       "sport": "F1",
-      "session_id": "f1-session-1771745834657",
+      "session_id": "f1-session-1771747673054",
       "market_type": "binary_yes_no",
-      "question": "Will Norris overtake Verstappen within 2 laps?",
+      "question": "Will Hamilton overtake Russell within 5 laps?",
       "context": {
         "source_event_type": "overtake_in_x_laps",
-        "laps": 2,
-        "driver_a": "Norris",
-        "driver_b": "Verstappen"
+        "driver_a": "Hamilton",
+        "driver_b": "Russell",
+        "laps": 5,
+        "close_reason": "settlement_requested"
       },
-      "open_at_ms": 1771745834657,
+      "open_at_ms": 1771747673054,
       "settlement_key": "f1_overtake_in_x_laps",
-      "starter_event_id": "31476bc0-9f78-4840-9409-7645665913e7",
+      "starter_event_id": "2e1bc8d5-d860-4ea6-813a-5baca82420a0",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -25,94 +26,47 @@
         "virtual_liquidity": 120,
         "fee_bps": 120
       },
-      "status": "open",
+      "status": "settled",
       "amm_state": {
-        "yes_pool": 60,
+        "yes_pool": 60.988,
         "no_pool": 60,
         "fee_bps": 120,
         "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1771745834657,
-        "updated_at_ms": 1771746225489
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      }
-    },
-    {
-      "market_id": "mkt_f1_1771745834658_9abda7",
-      "sport": "F1",
-      "session_id": "f1-session-1771745834658",
-      "market_type": "binary_yes_no",
-      "question": "Will Leclerc overtake Piastri within 3 laps?",
-      "context": {
-        "source_event_type": "overtake_in_x_laps",
-        "laps": 3,
-        "driver_a": "Leclerc",
-        "driver_b": "Piastri"
-      },
-      "open_at_ms": 1771745834658,
-      "settlement_key": "f1_overtake_in_x_laps",
-      "starter_event_id": "9abda714-154a-4035-a91c-e108eb4da2ca",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "open",
-      "amm_state": {
-        "yes_pool": 69.88,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0.12,
-        "total_volume": 10,
+        "total_fees_collected": 0.012,
+        "total_volume": 1,
         "trade_count": 1
       },
       "prices": {
-        "yes": 0.5380351093316907,
-        "no": 0.4619648906683092
+        "yes": 0.5040830495586339,
+        "no": 0.4959169504413661
       },
       "timestamps": {
-        "open_at_ms": 1771745834658,
-        "updated_at_ms": 1771746225489
+        "open_at_ms": 1771747673054,
+        "updated_at_ms": 1771747679649,
+        "closed_at_ms": 1771747679345,
+        "settled_at_ms": 1771747679649
       },
       "safety": {
         "max_open_duration_ms": 0,
         "expires_at_ms": 0,
         "timeout_triggered": false
-      }
+      },
+      "settlement_outcome": "YES"
     },
     {
-      "market_id": "mkt_stocks_1771745834658_658def",
+      "market_id": "mkt_stocks_1771747689403_10b667",
       "sport": "Stocks",
-      "session_id": "stocks-session-1771745834658",
+      "session_id": "stocks-session-1771747689403",
       "market_type": "binary_higher_lower",
       "question": "Will price be HIGHER in the next 5 minutes?",
       "context": {
         "source_event_type": "stock_up_down_window",
-        "symbol": "TSLA",
-        "window_minutes": 5,
-        "suspension_reason": "safety_timeout"
+        "symbol": "SMCI",
+        "window_minutes": 5
       },
-      "open_at_ms": 1771745834658,
+      "open_at_ms": 1771747689403,
       "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "658def21-86b5-4457-9a3e-536ce9f52eb8",
+      "starter_event_id": "10b667e6-c805-4768-8a1d-086c09df140e",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -123,7 +77,7 @@
         "virtual_liquidity": 120,
         "fee_bps": 120
       },
-      "status": "suspended",
+      "status": "open",
       "amm_state": {
         "yes_pool": 60,
         "no_pool": 60,
@@ -138,31 +92,29 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1771745834658,
-        "updated_at_ms": 1771745925558,
-        "suspended_at_ms": 1771745925558
+        "open_at_ms": 1771747689403,
+        "updated_at_ms": 1771747689403
       },
       "safety": {
-        "max_open_duration_ms": 90000,
-        "expires_at_ms": 1771745924658,
-        "timeout_triggered": true
+        "max_open_duration_ms": 0,
+        "expires_at_ms": 0,
+        "timeout_triggered": false
       }
     },
     {
-      "market_id": "mkt_stocks_1771745834659_6c5dd7",
+      "market_id": "mkt_stocks_1771747689994_962e02",
       "sport": "Stocks",
-      "session_id": "stocks-session-1771745834659",
+      "session_id": "stocks-session-1771747689994",
       "market_type": "binary_higher_lower",
-      "question": "Will price be HIGHER in the next 5 minutes?",
+      "question": "Will price be HIGHER in the next 8 minutes?",
       "context": {
         "source_event_type": "stock_up_down_window",
         "symbol": "NVDA",
-        "window_minutes": 5,
-        "suspension_reason": "safety_timeout"
+        "window_minutes": 8
       },
-      "open_at_ms": 1771745834659,
+      "open_at_ms": 1771747689994,
       "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "6c5dd729-720c-425b-9b3c-fd6673519c0b",
+      "starter_event_id": "962e02ed-aa2f-4bfb-a613-08121ace6059",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -173,7 +125,7 @@
         "virtual_liquidity": 120,
         "fee_bps": 120
       },
-      "status": "suspended",
+      "status": "open",
       "amm_state": {
         "yes_pool": 60,
         "no_pool": 60,
@@ -188,213 +140,14 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1771745834659,
-        "updated_at_ms": 1771745925558,
-        "suspended_at_ms": 1771745925558
+        "open_at_ms": 1771747689994,
+        "updated_at_ms": 1771747689994
       },
       "safety": {
-        "max_open_duration_ms": 90000,
-        "expires_at_ms": 1771745924659,
-        "timeout_triggered": true
-      }
-<<<<<<< HEAD
-    },
-    {
-      "market_id": "mkt_f1_1771736148407_ce4320",
-      "sport": "F1",
-      "session_id": "ocr_live_1771736126",
-      "market_type": "binary_yes_no",
-      "question": "Will the safety car be on for longer than 3.5 laps?",
-      "context": {
-        "source_event_type": "safety_car_start",
-        "source_trigger_type": "SAFETY_CAR_START",
-        "source_event_id": "evt_a801e3c5",
-        "source_timestamp_ms": 1771736148158,
-        "source_confidence": 0.9,
-        "lap_start": null,
-        "window_seconds": 600,
-        "ocr_text": "= --\nSAFETY CAR |\nOf im =F\nINCIDENT\n",
-        "market_line_laps": 3.5,
-        "detector": "safety_car_banner_ocr",
-        "resolution_event_id": "res_391d0e36",
-        "resolution_confidence": 0,
-        "resolution_reason": "safety_car_ending_detected",
-        "resolution_context": {
-          "lap_start": 1,
-          "lap_end": 3,
-          "delta_laps": 2,
-          "over_3_5_laps": false,
-          "ocr_text": "a %: “ee ’ | ae\n. ve\nLAP 3/44\nO© mr FIR\nENDING\nPIT STOPS\n"
-        },
-        "resolved_at_ms": 1771736295913,
-        "close_reason": "settlement_requested"
-      },
-      "open_at_ms": 1771736148407,
-      "settlement_key": "f1_safety_car_start",
-      "starter_event_id": "ce4320f8-6b4d-4fa2-a052-d1282130556b",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 1000,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 504.94,
-        "no_pool": 500,
-        "fee_bps": 120,
-        "virtual_liquidity": 1000,
-        "total_fees_collected": 0.06,
-        "total_volume": 5,
-        "trade_count": 1
-      },
-      "prices": {
-        "yes": 0.5024578581805879,
-        "no": 0.4975421418194121
-      },
-      "timestamps": {
-        "open_at_ms": 1771736148407,
-        "updated_at_ms": 1771736296554,
-        "closed_at_ms": 1771736296249,
-        "settled_at_ms": 1771736296554
-      },
-      "safety": {
-        "max_open_duration_ms": 600000,
-        "expires_at_ms": 1771736748407,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "NO"
-    },
-    {
-      "market_id": "mkt_f1_1771738842337_380c72",
-      "sport": "F1",
-      "session_id": "sc_watch_run",
-      "market_type": "binary_yes_no",
-      "question": "Will the safety car be on for longer than 3.5 laps?",
-      "context": {
-        "source_event_type": "safety_car_start",
-        "source_trigger_type": "SAFETY_CAR_START",
-        "source_event_id": "evt_9cfdc2cf",
-        "source_timestamp_ms": 1771738842051,
-        "source_confidence": 0.9,
-        "lap_start": null,
-        "window_seconds": 600,
-        "ocr_text": "= --\nSAFETY CAR |\nOf im =F\nINCIDENT\n",
-        "market_line_laps": 3.5,
-        "detector": "safety_car_banner_ocr",
-        "resolution_event_id": "res_78cfb153",
-        "resolution_confidence": 0,
-        "resolution_reason": "safety_car_ending_detected",
-        "resolution_context": {
-          "lap_start": 1,
-          "lap_end": 3,
-          "delta_laps": 2,
-          "over_3_5_laps": false,
-          "ocr_text": "a %: “ee ’ | ae\n. ve\nLAP 3/44\nO© mr FIR\nENDING\nPIT STOPS\n"
-        },
-        "resolved_at_ms": 1771739004328,
-        "close_reason": "settlement_requested"
-      },
-      "open_at_ms": 1771738842337,
-      "settlement_key": "f1_safety_car_start",
-      "starter_event_id": "380c7235-8b09-466f-86ca-6b45adb3a824",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 1000,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 500,
-        "no_pool": 509.88,
-        "fee_bps": 120,
-        "virtual_liquidity": 1000,
-        "total_fees_collected": 0.12,
-        "total_volume": 10,
-        "trade_count": 1
-      },
-      "prices": {
-        "yes": 0.49510832970253893,
-        "no": 0.5048916702974611
-      },
-      "timestamps": {
-        "open_at_ms": 1771738842337,
-        "updated_at_ms": 1771739005004,
-        "closed_at_ms": 1771739004702,
-        "settled_at_ms": 1771739005004
-      },
-      "safety": {
-        "max_open_duration_ms": 600000,
-        "expires_at_ms": 1771739442337,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "NO"
-    },
-    {
-      "market_id": "mkt_f1_1771746036542_673ca6",
-      "sport": "F1",
-      "session_id": "clip_test_01",
-      "market_type": "binary_yes_no",
-      "question": "Will the safety car be on for longer than 3.5 laps?",
-      "context": {
-        "source_event_type": "safety_car_start",
-        "source_trigger_type": "SAFETY_CAR_START",
-        "source_event_id": "evt_26843d63",
-        "source_timestamp_ms": 1771746034653,
-        "source_confidence": 0.9,
-        "lap_start": null,
-        "window_seconds": 600,
-        "ocr_text": "SAFETY CAR incident",
-        "market_line_laps": 3.5,
-        "detector": "safety_car_banner_ocr"
-      },
-      "open_at_ms": 1771746036542,
-      "settlement_key": "f1_safety_car_start",
-      "starter_event_id": "673ca6d1-33ad-4636-8a39-92c3509dfb45",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 1000,
-        "fee_bps": 120
-      },
-      "status": "open",
-      "amm_state": {
-        "yes_pool": 500,
-        "no_pool": 500,
-        "fee_bps": 120,
-        "virtual_liquidity": 1000,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1771746036542,
-        "updated_at_ms": 1771746036542
-      },
-      "safety": {
-        "max_open_duration_ms": 600000,
-        "expires_at_ms": 1771746636542,
+        "max_open_duration_ms": 0,
+        "expires_at_ms": 0,
         "timeout_triggered": false
       }
-=======
->>>>>>> d77e116a0f30078c14b5c580b7d4063665c04d08
     }
   ]
 }

@@ -21,8 +21,7 @@ const io = new SocketIOServer(fastify.server, {
 
 const engine = new MarketEngine({
   options: {
-    maxOpenDurationMs: 90_000,
-    safetySweepIntervalMs: 2_000,
+    enableSafetyTimeouts: false,
   },
   publish: (eventName, payload) => {
     io.emit(eventName, payload);
@@ -39,8 +38,7 @@ const starter = new MockBetStarterService(
     });
   },
   {
-    // Set STARTER_INTERVAL_MS to auto-fire demo events (e.g. 60000 for 1 min).
-    intervalMs: Number(process.env.STARTER_INTERVAL_MS ?? 0),
+    intervalMs: 0,
   },
 );
 
@@ -61,7 +59,7 @@ const closer = new MockBetCloserService(async (trigger: BetCloseTrigger) => {
 });
 
 engine.start();
-// No engine.seed() — markets only appear when the starter fires a real trigger.
+// No seed/auto events — markets only appear from explicit API-triggered calls.
 
 registerRoutes(fastify, engine, starter, closer);
 registerStripeRoutes(fastify, engine);

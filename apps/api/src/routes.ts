@@ -9,6 +9,7 @@ import {
   loginBodySchema,
   marketIdParamSchema,
   quoteRequestSchema,
+  scannerEventBodySchema,
   resolutionSignalBodySchema,
   settleMarketBodySchema,
   starterSignalBodySchema,
@@ -224,6 +225,51 @@ export const registerRoutes = (
   fastify.post("/dev/simulate/reset", async () => {
     engine.reset();
     return { ok: true };
+  });
+
+  fastify.post("/scanner/events", async (request, reply) => {
+    const body = scannerEventBodySchema.safeParse(request.body ?? {});
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    if (body.data.signal_type === "create_bet") {
+      const result = engine.ingestStarterSignal({
+        event_id: body.data.event_id,
+        sport: body.data.sport,
+        trigger_type: body.data.trigger_type,
+        session_id: body.data.session_id,
+        timestamp_ms: body.data.timestamp_ms,
+        lap: body.data.lap,
+        driver: body.data.driver,
+        rival_driver: body.data.rival_driver,
+        confidence: body.data.confidence,
+        cooldown_key: body.data.cooldown_key,
+        market_duration_ms: body.data.market_duration_ms,
+        context: body.data.context,
+      });
+
+      return {
+        ok: true,
+        mode: "starter_pipeline",
+        deduped: result.deduped,
+        reason: result.reason,
+        market: result.market,
+      };
+    }
+
+    const market = engine.closeMarket(body.data.market_id, body.data.reason ?? "scanner_close_signal");
+    if (!market) {
+      return reply.code(404).send({ message: "Market not found" });
+    }
+
+    return {
+      ok: true,
+      mode: "direct_close",
+      market,
+      closed_by_event_id: body.data.event_id,
+      closed_at_ms: body.data.timestamp_ms ?? Date.now(),
+    };
   });
 
   fastify.post("/starter/events", async (request, reply) => {

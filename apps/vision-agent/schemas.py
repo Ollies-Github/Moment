@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
 
-class StarterSignal(BaseModel):
+class CreateBetSignal(BaseModel):
     event_id: str
-    sport: str = "F1"
-    trigger_type: str
+    signal_type: Literal["create_bet"] = "create_bet"
+    sport: Literal["F1"] = "F1"
+    trigger_type: Literal["YELLOW_FLAG_START", "PIT_STATE_CHANGE", "BATTLE_WINDOW_START", "SAFETY_CAR_START"]
     session_id: str
     timestamp_ms: int
     lap: Optional[int] = None
@@ -20,11 +21,13 @@ class StarterSignal(BaseModel):
     context: dict[str, Any] = Field(default_factory=dict)
 
 
-class ResolutionSignal(BaseModel):
+class CloseBetSignal(BaseModel):
     event_id: str
+    signal_type: Literal["close_bet"] = "close_bet"
     market_id: str
-    outcome: str
-    confidence: float = Field(ge=0.0, le=1.0)
-    resolved_at_ms: int
-    reason: str = "vision_signal"
+    timestamp_ms: int
+    reason: str = "scanner_close_signal"
     context: dict[str, Any] = Field(default_factory=dict)
+
+
+ScannerSignal = Union[CreateBetSignal, CloseBetSignal]
