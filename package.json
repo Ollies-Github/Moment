@@ -5,8 +5,10 @@
   "packageManager": "pnpm@10.6.2",
   "scripts": {
     "setup": "pnpm --dir apps/api install --lockfile=false && pnpm --dir apps/mobile install --lockfile=false",
+    "ensure:api": "sh -c '[ -d apps/api/node_modules/stripe ] || pnpm --dir apps/api install --lockfile=false'",
+    "ensure:mobile": "sh -c '[ -d apps/mobile/node_modules/@stripe/stripe-react-native ] || pnpm --dir apps/mobile install --lockfile=false'",
     "dev": "sh -c 'pnpm dev:api & pnpm dev:mobile; wait'",
-    "dev:api": "pnpm --dir apps/api dev",
-    "dev:mobile": "pnpm --dir apps/mobile dev"
+    "dev:api": "pnpm run ensure:api && pnpm --dir apps/api dev",
+    "dev:mobile": "pnpm run ensure:mobile && pnpm --dir apps/mobile dev"
   }
 }

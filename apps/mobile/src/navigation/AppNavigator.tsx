@@ -9,6 +9,13 @@ import { colors } from "../theme/tokens";
 
 const Tabs = createBottomTabNavigator();
 
+const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Sports: "speedometer",
+  Stocks: "trending-up",
+  Profile: "person-circle",
+  Dev: "construct",
+};
+
 export function AppNavigator() {
   return (
     <Tabs.Navigator
@@ -28,17 +35,13 @@ export function AppNavigator() {
           fontSize: 11,
           fontWeight: "700",
         },
-        tabBarIcon: ({ color, size }) => {
-          const name =
-            route.name === "Sports"
-              ? "speedometer"
-              : route.name === "Stocks"
-                ? "trending-up"
-                : route.name === "Profile"
-                  ? "person-circle"
-                  : "construct";
-          return <Ionicons name={name as keyof typeof Ionicons.glyphMap} size={size} color={color} />;
-        },
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons
+            name={ICON_MAP[route.name] ?? "ellipse"}
+            size={size}
+            color={color}
+          />
+        ),
       })}
     >
       <Tabs.Screen name="Sports" component={F1Screen} />
