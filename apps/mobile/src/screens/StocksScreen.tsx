@@ -96,7 +96,7 @@ export function StocksScreen() {
         renderItem={({ item }) => {
           const symbol = getSymbol(item);
           const freshnessMs = Date.now() - item.timestamps.updated_at_ms;
-          const liveLabel = freshnessMs < 4_000 ? "LIVE" : freshnessMs < 15_000 ? "ACTIVE" : "";
+          const liveLabel = item.status === "open" ? (freshnessMs < 4_000 ? "LIVE" : freshnessMs < 15_000 ? "ACTIVE" : "") : "";
           const positiveSelection = positiveSelectionFor(item);
           const negativeSelection = negativeSelectionFor(item);
           const isDownSelected =

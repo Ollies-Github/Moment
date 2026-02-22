@@ -80,7 +80,8 @@ export function MarketCard({
 }: Props) {
   const copy = sideCopy(market.market_type, leftLabel, rightLabel, positiveOnRight);
   const freshnessMs = Date.now() - market.timestamps.updated_at_ms;
-  const liveLabel = freshnessMs < 4_000 ? "LIVE" : freshnessMs < 15_000 ? "ACTIVE" : "";
+  const isOpen = market.status === "open";
+  const liveLabel = isOpen ? (freshnessMs < 4_000 ? "LIVE" : freshnessMs < 15_000 ? "ACTIVE" : "") : "";
   const liveColor = freshnessMs < 4_000 ? colors.accentGreen : freshnessMs < 15_000 ? colors.accentBlue : colors.muted;
   const prevYesRef = useRef(market.prices.yes);
   const [trend, setTrend] = useState<"up" | "down" | "flat">("flat");
