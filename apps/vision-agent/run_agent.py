@@ -193,6 +193,8 @@ def main() -> None:
         # If lap was missing at SC start, capture the next available lap mention.
         if sc_start_logged and sc_start_lap is None and isinstance(lap, int):
             sc_start_lap = lap
+            if active_market is not None:
+                active_market.lap_start = lap
             print(f"[lap_start_captured] t={t_s:.2f}s lap={lap}")
 
         # If SC ENDING is already seen and lap missing there, capture the next available lap.
@@ -264,9 +266,9 @@ def main() -> None:
                     f"[sc_result] t_end={t_s:.2f}s lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta} wait_expired={wait_expired}"
                 )
                 if not args.analyze_only and active_market is not None:
-                    outcome = "LOWER"
+                    outcome = "NO"
                     if isinstance(laps_delta, int) and laps_delta >= 4:
-                        outcome = "HIGHER"
+                        outcome = "YES"
                     resolution = ResolutionSignal(
                         event_id=f"res_{uuid4().hex[:8]}",
                         market_id=active_market.market_id,
@@ -278,13 +280,16 @@ def main() -> None:
                             "lap_start": lap_start,
                             "lap_end": lap_end,
                             "delta_laps": laps_delta,
+                            "over_3_5_laps": bool(isinstance(laps_delta, int) and laps_delta >= 4),
                             "ocr_text": end_text,
                         },
                     )
                     try:
-                        client.post_resolution(resolution)
+                        settled = client.post_resolution(resolution)
                         print(
-                            f"[closer] market={active_market.market_id} outcome={outcome} lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta}"
+                            f"[closer] market={active_market.market_id} outcome={outcome} "
+                            f"status={(settled.get('market') or {}).get('status')} "
+                            f"lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta}"
                         )
                     except Exception as exc:
                         print(f"[closer] error={exc}")

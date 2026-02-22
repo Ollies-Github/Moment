@@ -113,6 +113,7 @@ const getQuote = (amm: AmmState, selection: Selection, stake: number) => {
 };
 
 type PersistedState = {
+  markets?: Market[];
   users: UserAccount[];
   wallets: Wallet[];
   picks: Bet[];
@@ -370,6 +371,7 @@ export class MarketEngine {
   simulateStarterEvent(input: StarterInput): Market {
     const market = this.buildMarketFromStarter(input);
     this.markets.set(market.market_id, market);
+    this.persistState();
     this.emit("market.opened", market);
     return market;
   }
@@ -416,6 +418,7 @@ export class MarketEngine {
     market.timestamps.updated_at_ms = now;
     market.context = { ...market.context, close_reason: reason };
     this.markets.set(market.market_id, market);
+    this.persistState();
     this.emit("market.closed", market);
     return market;
   }
@@ -434,6 +437,7 @@ export class MarketEngine {
       market.timestamps.updated_at_ms = Date.now();
       market.context = { ...market.context, oracle_rejection: true };
       this.markets.set(market.market_id, market);
+      this.persistState();
       this.emit("market.suspended", market);
       return market;
     }
@@ -480,6 +484,7 @@ export class MarketEngine {
       resolved_at_ms: signal.resolved_at_ms ?? Date.now(),
     };
     this.markets.set(market.market_id, market);
+    this.persistState();
 
     return this.settleMarket(signal.market_id, signal.outcome, { skipOracleCheck: true });
   }
@@ -494,6 +499,8 @@ export class MarketEngine {
   }
 
   seed(): void {
+    if (this.markets.size > 0) return;
+
     const seedInputs: StarterInput[] = [
       { sport: "F1", event_type: "overtake_in_x_laps", context: { laps: 2, driver_a: "Norris", driver_b: "Verstappen" } },
       { sport: "F1", event_type: "overtake_in_x_laps", context: { laps: 3, driver_a: "Leclerc", driver_b: "Piastri" } },
@@ -506,6 +513,7 @@ export class MarketEngine {
       this.markets.set(market.market_id, market);
       this.emit("market.opened", market);
     }
+    this.persistState();
   }
 
   private emit(eventName: PublishEventName, payload: unknown): void {
@@ -580,6 +588,7 @@ export class MarketEngine {
       const raw = readFileSync(ACCOUNTS_FILE, "utf8");
       const parsed = JSON.parse(raw) as PersistedState;
 
+      for (const market of parsed.markets ?? []) this.markets.set(market.market_id, market);
       for (const user of parsed.users ?? []) this.users.set(user.user_id, user);
       for (const wallet of parsed.wallets ?? []) this.wallets.set(wallet.user_id, wallet);
       for (const pickRow of parsed.picks ?? []) {
@@ -587,6 +596,7 @@ export class MarketEngine {
         this.betsByUser.set(pickRow.user_id, [...(this.betsByUser.get(pickRow.user_id) ?? []), pickRow.bet_id]);
       }
     } catch {
+      this.markets.clear();
       this.users.clear();
       this.wallets.clear();
       this.bets.clear();
@@ -596,6 +606,7 @@ export class MarketEngine {
 
   private persistState(): void {
     const state: PersistedState = {
+      markets: [...this.markets.values()],
       users: [...this.users.values()],
       wallets: [...this.wallets.values()],
       picks: [...this.bets.values()],
@@ -630,8 +641,8 @@ export class MarketEngine {
         market_type = "binary_yes_no";
         question = `Will ${attacker} overtake ${defender} within the next lap?`;
       } else if (input.event_type === "safety_car_start") {
-        market_type = "binary_higher_lower";
-        question = "Will Safety Car duration be over or under 3.5 laps?";
+        market_type = "binary_yes_no";
+        question = "Will the safety car be on for longer than 3.5 laps?";
       } else {
         const [driverA, driverB] = Array.isArray(context.drivers) ? (context.drivers as string[]) : pick(F1_DRIVERS);
         const laps =
@@ -703,6 +714,7 @@ export class MarketEngine {
 
   private suspendStaleMarkets(): void {
     const now = Date.now();
+    let changed = false;
     for (const market of this.markets.values()) {
       if (market.status !== "open") continue;
       if (now <= market.safety.expires_at_ms) continue;
@@ -714,6 +726,8 @@ export class MarketEngine {
       market.context = { ...market.context, suspension_reason: "safety_timeout" };
       this.markets.set(market.market_id, market);
       this.emit("market.suspended", market);
+      changed = true;
     }
+    if (changed) this.persistState();
   }
 }
