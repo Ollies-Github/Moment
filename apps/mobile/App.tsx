@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
+import { StripeProvider } from "@stripe/stripe-react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -10,6 +11,8 @@ import { api } from "./src/services/api";
 import { connectSocket } from "./src/services/socket";
 import { useAppStore } from "./src/store/useAppStore";
 import { colors } from "./src/theme/tokens";
+
+const STRIPE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 const navTheme = {
   ...DarkTheme,
@@ -84,9 +87,11 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       {isAuthenticated ? (
-        <NavigationContainer theme={navTheme}>
-          <AppNavigator />
-        </NavigationContainer>
+        <StripeProvider publishableKey={STRIPE_KEY} merchantIdentifier="merchant.com.moment">
+          <NavigationContainer theme={navTheme}>
+            <AppNavigator />
+          </NavigationContainer>
+        </StripeProvider>
       ) : (
         <AuthScreen />
       )}

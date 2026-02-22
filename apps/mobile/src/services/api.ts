@@ -1,4 +1,4 @@
-import type { Bet, BetRequest, Market, Selection, UserAccount, Wallet } from "../types/contracts";
+import type { Bet, BetQuote, BetRequest, Market, Selection, UserAccount, Wallet } from "../types/contracts";
 import { API_URL } from "../utils/network";
 
 class ApiError extends Error {
@@ -91,6 +91,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ amount }),
     }),
+  stripeCreatePaymentIntent: (userId: string, amountCents: number) =>
+    req<{ clientSecret: string }>("/stripe/create-payment-intent", {
+      method: "POST",
+      body: JSON.stringify({ userId, amount: amountCents }),
+    }),
+  stripeCreatePayout: (userId: string, amountCents: number) =>
+    req<{ ok: boolean; wallet: Wallet }>("/stripe/create-payout", {
+      method: "POST",
+      body: JSON.stringify({ userId, amount: amountCents }),
+    }),
+  quote: (payload: BetRequest) =>
+    req<BetQuote>("/quotes", { method: "POST", body: JSON.stringify(payload) }),
   placeBet: (payload: BetRequest) =>
     req<Bet>("/picks", { method: "POST", body: JSON.stringify(payload) }),
   triggerStarter: (payload?: {

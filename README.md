@@ -6,7 +6,7 @@
 ## Install
 From the project root:
 
-```bashcd a
+```bash
 pnpm --dir apps/api install --lockfile=false
 pnpm --dir apps/mobile install --lockfile=false
 ```
@@ -15,13 +15,7 @@ pnpm --dir apps/mobile install --lockfile=false
 Terminal A:
 
 ```bash
-pnpm --dir apps/api dev
-```
-
-Terminal B:
-
-```bash
-pnpm --dir apps/mobile dev
+pnpm run dev
 ```
 
 ## iPhone (Expo Go)

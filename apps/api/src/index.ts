@@ -1,3 +1,4 @@
+import "dotenv/config";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { Server as SocketIOServer } from "socket.io";
@@ -5,6 +6,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { MarketEngine } from "./engine";
 import { MockBetCloserService, MockBetStarterService, type BetCloseTrigger, type BetStarterEvent } from "./mock-services";
 import { registerRoutes } from "./routes";
+import { registerStripeRoutes } from "./stripe-routes";
 
 const PORT = Number(process.env.PORT ?? 4000);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -62,6 +64,7 @@ engine.start();
 // No engine.seed() — markets only appear when the starter fires a real trigger.
 
 registerRoutes(fastify, engine, starter, closer);
+registerStripeRoutes(fastify, engine);
 
 io.on("connection", (socket) => {
   engine.setConnectionCount(io.engine.clientsCount);

@@ -5,9 +5,16 @@ import { DevScreen } from "../screens/DevScreen";
 import { F1Screen } from "../screens/F1Screen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { StocksScreen } from "../screens/StocksScreen";
-import { colors, layout } from "../theme/tokens";
+import { colors } from "../theme/tokens";
 
 const Tabs = createBottomTabNavigator();
+
+const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Sports: "speedometer",
+  Stocks: "trending-up",
+  Profile: "person-circle",
+  Dev: "construct",
+};
 
 export function AppNavigator() {
   return (
@@ -21,16 +28,6 @@ export function AppNavigator() {
           height: 84,
           paddingBottom: 10,
           paddingTop: 8,
-          position: "absolute",
-          left: 12,
-          right: 12,
-          bottom: 10,
-          borderRadius: layout.radiusLg,
-          shadowColor: "#000",
-          shadowOpacity: 0.18,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 5,
         },
         tabBarActiveTintColor: colors.accentBlue,
         tabBarInactiveTintColor: colors.muted,
@@ -38,17 +35,13 @@ export function AppNavigator() {
           fontSize: 11,
           fontWeight: "700",
         },
-        tabBarIcon: ({ color, size }) => {
-          const name =
-            route.name === "Sports"
-              ? "speedometer"
-              : route.name === "Stocks"
-                ? "trending-up"
-                : route.name === "Profile"
-                  ? "person-circle"
-                  : "construct";
-          return <Ionicons name={name as keyof typeof Ionicons.glyphMap} size={size} color={color} />;
-        },
+        tabBarIcon: ({ color, size }) => (
+          <Ionicons
+            name={ICON_MAP[route.name] ?? "ellipse"}
+            size={size}
+            color={color}
+          />
+        ),
       })}
     >
       <Tabs.Screen name="Sports" component={F1Screen} />

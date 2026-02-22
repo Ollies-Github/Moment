@@ -116,6 +116,7 @@ const styles = StyleSheet.create({
   hero: {
     marginHorizontal: 14,
     marginTop: 10,
+    marginBottom: 12,
     borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -168,9 +169,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   listContent: {
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingTop: 0,
     gap: 12,
-    paddingBottom: 120,
+    paddingBottom: 24,
   },
   emptyWrap: {
     borderRadius: layout.radiusLg,
