@@ -10,5 +10,8 @@
     "dev": "sh -c 'pnpm dev:api & pnpm dev:mobile; wait'",
     "dev:api": "pnpm run ensure:api && pnpm --dir apps/api dev",
     "dev:mobile": "pnpm run ensure:mobile && pnpm --dir apps/mobile dev"
+  },
+  "dependencies": {
+    "pnpm": "^10.30.1"
   }
 }
