@@ -4,6 +4,7 @@ Event-create LLM pipeline for event creation.
 Focus:
   - preopen_volatility: fully implemented from scanner JSON
   - intraday_volatility: fully implemented from scanner JSON
+  - f1_safety_car_laps: fully implemented from vision starter JSON
   - f1_race: skeleton output
   - preopen output also includes:
       * ai_summary (2-3 lines)
@@ -108,10 +109,12 @@ def _bootstrap_env() -> None:
     Load env values for this pipeline.
     Priority:
       1) process env
-      2) event_create/.env
-      3) trading/.env (fallback)
+      2) repo root .env
+      3) event_create/.env
+      4) trading/.env (fallback)
     """
     base_dir = Path(__file__).resolve().parent
+    _load_env_file(base_dir.parent.parent / ".env")
     _load_env_file(base_dir / ".env")
     _load_env_file(base_dir.parent / "trading" / ".env")
 
@@ -451,6 +454,83 @@ def _build_f1_skeleton(payload: dict[str, Any], llm: GeminiClient) -> dict[str, 
     return base
 
 
+def _fallback_f1_safety_car_summary(
+    line_laps: float,
+    duration_seconds: int,
+    lap_start: int | None,
+    confidence: float,
+    context: str,
+) -> str:
+    lap_text = f"Lap {lap_start}" if isinstance(lap_start, int) and lap_start > 0 else "Lap unknown"
+    confidence_pct = max(0.0, min(100.0, confidence * 100.0))
+    return (
+        f"Safety Car trigger detected at {lap_text} with {confidence_pct:.0f}% model confidence.\n"
+        f"This market asks OVER/UNDER {line_laps:.1f} laps and is open for {duration_seconds}s.\n"
+        f"Signal context: {context}"
+    )
+
+
+def _build_f1_safety_car_event(payload: dict[str, Any], llm: GeminiClient) -> dict[str, Any]:
+    trigger_type = str(payload.get("trigger_type", "SAFETY_CAR_START")).strip().upper()
+    session_id = str(payload.get("session_id", "unknown-session")).strip()
+    line_laps = float(payload.get("market_line_laps", 3.5))
+    if line_laps <= 0:
+        line_laps = 3.5
+
+    duration_seconds = max(30, int(payload.get("duration_seconds", 60)))
+    raw_lap = payload.get("lap_start", payload.get("lap"))
+    lap_start = int(raw_lap) if isinstance(raw_lap, int) and raw_lap > 0 else None
+
+    confidence = float(payload.get("source_confidence", payload.get("confidence", 0.0)))
+    confidence = max(0.0, min(1.0, confidence))
+    context = str(payload.get("context", "Safety Car banner detected from the live vision feed."))
+    published_at = str(payload.get("published_at", "Unknown"))
+    source_event_id = str(payload.get("source_event_id", payload.get("event_source_id", ""))).strip() or None
+
+    base = {
+        "event_id": _get_event_id(payload),
+        "event_type": "f1_safety_car_laps",
+        "question": f"Will the Safety Car be out for OVER {line_laps:.1f} laps?",
+        "session_id": session_id,
+        "trigger_type": trigger_type,
+        "lap_start": lap_start,
+        "market_line_laps": line_laps,
+        "duration_seconds": duration_seconds,
+        "source_confidence": confidence,
+        "source_event_id": source_event_id,
+        "published_at": published_at,
+        "context": context,
+        "ai_summary": _fallback_f1_safety_car_summary(
+            line_laps=line_laps,
+            duration_seconds=duration_seconds,
+            lap_start=lap_start,
+            confidence=confidence,
+            context=context,
+        ),
+    }
+
+    llm_result = llm.generate_json(
+        "f1_safety_car_event",
+        base,
+        task=(
+            "Return ONLY valid JSON with keys: question, context, ai_summary. "
+            "ai_summary must be exactly 3 short lines for a fast F1 safety-car market."
+        ),
+        extra_rules=[
+            "Keep ai_summary concise, energetic, and factual.",
+            "Do not give guarantees or certainty language.",
+            "Line 1 must include safety car trigger plus lap if available.",
+            "Line 2 must include market_line_laps and duration_seconds.",
+            "Line 3 must explain why this is a fast decision moment.",
+        ],
+    )
+    if isinstance(llm_result, dict):
+        for key in ("question", "context", "ai_summary"):
+            if key in llm_result and isinstance(llm_result[key], str) and llm_result[key].strip():
+                base[key] = llm_result[key].strip()
+    return base
+
+
 def build_event_payload(source_payload: dict[str, Any]) -> dict[str, Any]:
     """
     Route by event type.
@@ -458,6 +538,7 @@ def build_event_payload(source_payload: dict[str, Any]) -> dict[str, Any]:
       - preopen_volatility (implemented)
       - intraday_volatility (implemented)
       - f1_race (skeleton)
+      - f1_safety_car_laps (implemented)
     """
     llm = GeminiClient()
     raw_type = source_payload.get("event_type", source_payload.get("bet_type", ""))
@@ -467,12 +548,14 @@ def build_event_payload(source_payload: dict[str, Any]) -> dict[str, Any]:
         return _build_preopen_event(source_payload, llm)
     if event_type == "intraday_volatility":
         return _build_intraday_event(source_payload, llm)
+    if event_type in {"f1_safety_car_laps", "f1_safety_car", "vision_f1_safety_car"}:
+        return _build_f1_safety_car_event(source_payload, llm)
     if event_type in {"f1_race", "f1"}:
         return _build_f1_skeleton(source_payload, llm)
 
     _die(
         "Unsupported or missing event_type/bet_type. "
-        "Expected preopen_volatility, intraday_volatility, or f1_race."
+        "Expected preopen_volatility, intraday_volatility, f1_safety_car_laps, or f1_race."
     )
 
 

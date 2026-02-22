@@ -6,7 +6,7 @@
 ## Install
 From the project root:
 
-```bash
+```bashcd a
 pnpm --dir apps/api install --lockfile=false
 pnpm --dir apps/mobile install --lockfile=false
 ```

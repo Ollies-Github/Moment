@@ -4,11 +4,13 @@ Scanner + event pipeline runner.
 Modes:
   - preopen: multi-ticker events during preopen window, closes at open
   - intraday: multi-ticker events, one active event per ticker, short TTL
+  - vision: ingests vision-agent starter/resolution JSON and emits the same event lifecycle
   - auto: picks preopen if currently in preopen window, otherwise intraday
 
 Usage:
   python trading/scanner_events.py --mode preopen --backtest-time 2025-04-03T13:27:00Z
   python trading/scanner_events.py --mode intraday --backtest-time 2025-04-09T17:20:00Z
+  python trading/scanner_events.py --mode vision --vision-input path/to/vision_signals.ndjson
 """
 
 from __future__ import annotations
@@ -77,6 +79,7 @@ class Config:
     intraday_target_max_pct: float
     intraday_target_scale: float
     event_id_start: int
+    vision_input: str
 
 
 def _iso(dt: datetime) -> str:
@@ -106,9 +109,12 @@ def _load_env_file(path: Path) -> None:
 
 
 def _bootstrap_env() -> None:
-    root = Path(__file__).resolve().parent.parent
-    _load_env_file(root / "trading" / ".env")
-    _load_env_file(root / "event_create" / ".env")
+    apps_root = Path(__file__).resolve().parent.parent
+    repo_root = apps_root.parent
+    _load_env_file(repo_root / ".env")
+    # Backward-compatible fallbacks while migrating.
+    _load_env_file(apps_root / "trading" / ".env")
+    _load_env_file(apps_root / "event_create" / ".env")
 
 
 def _import_modules() -> tuple[Any, Any]:
@@ -177,24 +183,35 @@ def _parse_args() -> argparse.Namespace:
         default=float(os.getenv("INTRADAY_TARGET_SCALE", "0.35")),
     )
     parser.add_argument("--event-id-start", type=int, default=int(os.getenv("EVENT_ID_START", "1")))
+    parser.add_argument(
+        "--vision-input",
+        type=str,
+        default=os.getenv("VISION_INPUT", ""),
+        help="Path to JSON/NDJSON file with vision starter/resolution signals. "
+        "Unset => read JSON lines from stdin.",
+    )
     return parser.parse_args()
 
 
 def _build_config(scanner: Any, args: argparse.Namespace) -> Config:
     mode = str(args.mode).strip().lower() or "preopen"
-    if mode not in {"preopen", "intraday", "auto"}:
-        raise ValueError("SCANNER_EVENTS_MODE must be preopen, intraday, or auto.")
+    if mode not in {"preopen", "intraday", "auto", "vision"}:
+        raise ValueError("SCANNER_EVENTS_MODE must be preopen, intraday, auto, or vision.")
     intraday_target_mode = str(args.intraday_target_mode).strip().lower() or "dynamic"
     if intraday_target_mode not in {"dynamic", "fixed"}:
         raise ValueError("INTRADAY_TARGET_MODE must be dynamic or fixed.")
 
-    raw_backtest = str(args.backtest_time or "").strip()
-    if raw_backtest:
-        backtest_time = _parse_iso_utc(raw_backtest)
-        backtest_time_str = raw_backtest
+    if mode == "vision":
+        backtest_time = None
+        backtest_time_str = ""
     else:
-        backtest_time = scanner.parse_backtest_time()
-        backtest_time_str = scanner.BACKTEST_TIME_STR if backtest_time else ""
+        raw_backtest = str(args.backtest_time or "").strip()
+        if raw_backtest:
+            backtest_time = _parse_iso_utc(raw_backtest)
+            backtest_time_str = raw_backtest
+        else:
+            backtest_time = scanner.parse_backtest_time()
+            backtest_time_str = scanner.BACKTEST_TIME_STR if backtest_time else ""
 
     intraday_duration_seconds = max(15, int(args.intraday_duration_seconds))
     raw_cooldown_seconds = max(0, int(args.intraday_ticker_cooldown_seconds))
@@ -221,6 +238,7 @@ def _build_config(scanner: Any, args: argparse.Namespace) -> Config:
         intraday_target_max_pct=max(0.1, abs(float(args.intraday_target_max_pct))),
         intraday_target_scale=max(0.01, float(args.intraday_target_scale)),
         event_id_start=max(1, int(args.event_id_start)),
+        vision_input=str(args.vision_input or "").strip(),
     )
 
 
@@ -249,6 +267,8 @@ def _in_preopen_window(as_of: datetime, window_minutes: int) -> bool:
 
 
 def _resolve_mode(config_mode: str, as_of: datetime, window_minutes: int) -> str:
+    if config_mode == "vision":
+        return "vision"
     if config_mode == "auto":
         return "preopen" if _in_preopen_window(as_of, window_minutes) else "intraday"
     return config_mode
@@ -1073,6 +1093,369 @@ def _run_intraday_live(scanner: Any, build_event_payload: Any, cfg: Config, id_c
         time.sleep(cfg.poll_seconds)
 
 
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _dt_from_ms(value: Any) -> datetime:
+    try:
+        ms = int(float(value))
+        if ms <= 0:
+            raise ValueError
+        return datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
+    except (TypeError, ValueError):
+        return _utc_now()
+
+
+def _safe_market_id(session_id: str, source_event_id: str) -> str:
+    raw = f"vision_{session_id}_{source_event_id}"
+    out = []
+    for ch in raw:
+        if ch.isalnum() or ch in {"_", "-"}:
+            out.append(ch)
+        else:
+            out.append("_")
+    return "".join(out)
+
+
+def _iter_vision_messages(path: str) -> list[tuple[str, dict[str, Any]]]:
+    out: list[tuple[str, dict[str, Any]]] = []
+    if path:
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"VISION_INPUT file not found: {path}")
+
+        raw = p.read_text(encoding="utf-8").strip()
+        if not raw:
+            return out
+
+        if raw.startswith("["):
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict):
+                        kind_payload = _classify_vision_message(item)
+                        if kind_payload:
+                            out.append(kind_payload)
+            return out
+
+        if raw.startswith("{"):
+            try:
+                one = json.loads(raw)
+            except json.JSONDecodeError:
+                one = None
+            if isinstance(one, dict):
+                kind_payload = _classify_vision_message(one)
+                if kind_payload:
+                    out.append(kind_payload)
+                return out
+
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            payload_line = _extract_json_payload_line(line)
+            if payload_line is None:
+                continue
+            try:
+                item = json.loads(payload_line)
+            except json.JSONDecodeError:
+                print(f"[scanner_events] Skipping invalid JSON line: {line[:120]}", file=sys.stderr)
+                continue
+            if isinstance(item, dict):
+                kind_payload = _classify_vision_message(item)
+                if kind_payload:
+                    out.append(kind_payload)
+        return out
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        payload_line = _extract_json_payload_line(line)
+        if payload_line is None:
+            continue
+        try:
+            item = json.loads(payload_line)
+        except json.JSONDecodeError:
+            print(f"[scanner_events] Skipping invalid stdin JSON line: {line[:120]}", file=sys.stderr)
+            continue
+        if isinstance(item, dict):
+            kind_payload = _classify_vision_message(item)
+            if kind_payload:
+                out.append(kind_payload)
+    return out
+
+
+def _extract_json_payload_line(line: str) -> str | None:
+    stripped = line.strip()
+    if not stripped:
+        return None
+
+    if "payload=" in stripped:
+        candidate = stripped.split("payload=", 1)[1].strip()
+        if candidate.startswith("{") or candidate.startswith("["):
+            return candidate
+        return None
+
+    if stripped.startswith("{") or stripped.startswith("["):
+        return stripped
+    return None
+
+
+def _classify_vision_message(message: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    # wrapper formats
+    if isinstance(message.get("starter"), dict):
+        return "starter", message["starter"]
+    if isinstance(message.get("resolution"), dict):
+        return "resolution", message["resolution"]
+    if isinstance(message.get("payload"), dict):
+        nested = _classify_vision_message(message["payload"])
+        if nested:
+            return nested
+
+    signal_type = str(message.get("signal_type", "")).strip().lower()
+    if signal_type in {"starter", "start"}:
+        return "starter", message
+    if signal_type in {"resolution", "resolve", "closer"}:
+        return "resolution", message
+
+    # inferred raw payloads
+    if "trigger_type" in message and "session_id" in message:
+        return "starter", message
+    if "market_id" in message and "outcome" in message:
+        return "resolution", message
+
+    print(f"[scanner_events] Ignoring unknown vision payload keys={list(message.keys())[:10]}", file=sys.stderr)
+    return None
+
+
+def _build_vision_source_payload(starter: dict[str, Any], event_id: int) -> tuple[str, dict[str, Any], datetime]:
+    source_event_id = str(starter.get("event_id", "")).strip() or f"src_{event_id}"
+    session_id = str(starter.get("session_id", "vision-session")).strip() or "vision-session"
+    trigger_type = str(starter.get("trigger_type", "SAFETY_CAR_START")).strip().upper()
+    created_dt = _dt_from_ms(starter.get("timestamp_ms"))
+    duration_seconds = max(30, int(round(float(starter.get("market_duration_ms", 60_000)) / 1000.0)))
+    confidence = float(starter.get("confidence", 0.0))
+    confidence = max(0.0, min(1.0, confidence))
+
+    context_obj = starter.get("context")
+    if not isinstance(context_obj, dict):
+        context_obj = {}
+    line_laps = float(context_obj.get("market_line_laps", 3.5))
+    if line_laps <= 0:
+        line_laps = 3.5
+
+    lap_start_raw = starter.get("lap", context_obj.get("lap_start"))
+    lap_start = int(lap_start_raw) if isinstance(lap_start_raw, int) and lap_start_raw > 0 else None
+
+    ocr_text = str(context_obj.get("ocr_text", "")).strip()
+    context = f"{trigger_type} detected from live vision feed."
+    if ocr_text:
+        context = f"{context} OCR: {ocr_text[:220]}"
+
+    market_id = str(starter.get("market_id", "")).strip() or _safe_market_id(session_id, source_event_id)
+
+    payload = {
+        "event_id": event_id,
+        "event_type": "f1_safety_car_laps",
+        "source_event_id": source_event_id,
+        "session_id": session_id,
+        "trigger_type": trigger_type,
+        "lap_start": lap_start,
+        "market_line_laps": line_laps,
+        "duration_seconds": duration_seconds,
+        "source_confidence": confidence,
+        "context": context,
+        "published_at": _iso(created_dt),
+    }
+    return market_id, payload, created_dt
+
+
+def _emit_vision_event_active(state: ActiveEvent, as_of: datetime) -> None:
+    payload = state.payload
+    _emit(
+        {
+            "event": "event_active",
+            "event_state": "active",
+            "event_at": _iso(as_of),
+            "expires_at": state.expires_at,
+            "event_id": payload.get("event_id"),
+            "event_type": payload.get("event_type"),
+            "market_id": payload.get("market_id"),
+            "session_id": payload.get("session_id"),
+            "question": payload.get("question"),
+            "trigger_type": payload.get("trigger_type"),
+            "lap_start": payload.get("lap_start"),
+            "market_line_laps": payload.get("market_line_laps"),
+            "duration_seconds": payload.get("duration_seconds"),
+            "source_confidence": payload.get("source_confidence"),
+            "context": payload.get("context"),
+            "published_at": payload.get("published_at"),
+            "ai_summary": payload.get("ai_summary"),
+        }
+    )
+
+
+def _close_vision_event(
+    active_events: dict[str, ActiveEvent],
+    market_id: str,
+    close_dt: datetime,
+    close_reason: str,
+    resolution: dict[str, Any] | None = None,
+) -> None:
+    state = active_events.get(market_id)
+    if state is None:
+        return
+
+    payload = state.payload
+    outcome = None
+    resolution_confidence = None
+    resolution_context: dict[str, Any] | None = None
+    if isinstance(resolution, dict):
+        outcome_raw = resolution.get("outcome")
+        if isinstance(outcome_raw, str) and outcome_raw.strip():
+            outcome = outcome_raw.strip().upper()
+        try:
+            resolution_confidence = float(resolution.get("confidence"))
+        except (TypeError, ValueError):
+            resolution_confidence = None
+        ctx = resolution.get("context")
+        if isinstance(ctx, dict):
+            resolution_context = ctx
+
+    _emit(
+        {
+            "event": "event_closed",
+            "event_state": "closed",
+            "event_at": _iso(close_dt),
+            "close_reason": close_reason,
+            "event_id": payload.get("event_id"),
+            "event_type": payload.get("event_type"),
+            "market_id": payload.get("market_id"),
+            "session_id": payload.get("session_id"),
+            "question": payload.get("question"),
+            "created_at": state.created_at,
+            "expires_at": state.expires_at,
+            "settlement_outcome": outcome,
+            "resolution_confidence": resolution_confidence,
+            "resolution_context": resolution_context,
+        }
+    )
+    del active_events[market_id]
+
+
+def _expire_vision_events(active_events: dict[str, ActiveEvent], as_of: datetime) -> None:
+    for market_id in list(active_events.keys()):
+        state = active_events.get(market_id)
+        if state is None:
+            continue
+        if as_of >= state.expires_dt:
+            _close_vision_event(
+                active_events,
+                market_id,
+                state.expires_dt,
+                close_reason="duration_elapsed",
+                resolution=None,
+            )
+
+
+def _run_vision_mode(build_event_payload: Any, cfg: Config, id_counter: list[int]) -> None:
+    active_events: dict[str, ActiveEvent] = {}
+    source_to_market: dict[str, str] = {}
+
+    src = cfg.vision_input if cfg.vision_input else "stdin"
+    print(f"[scanner_events] VISION mode source={src}", file=sys.stderr)
+
+    messages = _iter_vision_messages(cfg.vision_input)
+    for signal_type, signal in messages:
+        signal_time = _dt_from_ms(signal.get("timestamp_ms", signal.get("resolved_at_ms")))
+        _expire_vision_events(active_events, signal_time)
+
+        if signal_type == "starter":
+            event_id = _next_event_id(id_counter)
+            try:
+                market_id, source_payload, created_dt = _build_vision_source_payload(signal, event_id)
+                created = build_event_payload(source_payload)
+            except Exception as exc:
+                print(f"[scanner_events] Vision starter build failed: {exc}", file=sys.stderr)
+                continue
+
+            # Deduplicate while active: re-emit active instead of recreating.
+            if market_id in active_events:
+                _emit_vision_event_active(active_events[market_id], signal_time)
+                continue
+
+            duration_seconds = max(30, int(created.get("duration_seconds", source_payload["duration_seconds"])))
+            expires_dt = created_dt + timedelta(seconds=duration_seconds)
+            created["event_id"] = event_id
+            created["event_type"] = "f1_safety_car_laps"
+            created["market_id"] = market_id
+            created["session_id"] = source_payload.get("session_id")
+            created["source_event_id"] = source_payload.get("source_event_id")
+            created["duration_seconds"] = duration_seconds
+
+            state = ActiveEvent(
+                payload=created,
+                created_dt=created_dt,
+                expires_dt=expires_dt,
+            )
+            active_events[market_id] = state
+            source_event_id = str(source_payload.get("source_event_id", "")).strip()
+            if source_event_id:
+                source_to_market[source_event_id] = market_id
+
+            _emit(
+                {
+                    "event": "event_created",
+                    "event_state": "active",
+                    "event_at": state.created_at,
+                    "expires_at": state.expires_at,
+                    "event_payload": created,
+                }
+            )
+            _emit_vision_event_active(state, signal_time)
+            continue
+
+        # resolution
+        market_id = str(signal.get("market_id", "")).strip()
+        if not market_id:
+            source_event_id = str(signal.get("event_id", "")).strip()
+            market_id = source_to_market.get(source_event_id, "")
+
+        if not market_id:
+            print(
+                f"[scanner_events] Vision resolution skipped (unknown market): keys={list(signal.keys())[:10]}",
+                file=sys.stderr,
+            )
+            continue
+
+        close_dt = _dt_from_ms(signal.get("resolved_at_ms"))
+        reason = str(signal.get("reason", "vision_signal")).strip() or "vision_signal"
+        _close_vision_event(
+            active_events,
+            market_id,
+            close_dt,
+            close_reason=reason,
+            resolution=signal,
+        )
+        _expire_vision_events(active_events, close_dt)
+
+    # Any unresolved active events are force-closed when input completes.
+    if active_events:
+        now = _utc_now()
+        for market_id in list(active_events.keys()):
+            _close_vision_event(
+                active_events,
+                market_id,
+                now,
+                close_reason="stream_complete",
+                resolution=None,
+            )
+
+    print("[scanner_events] Vision stream complete.", file=sys.stderr)
+
+
 def main() -> None:
     _bootstrap_env()
     args = _parse_args()
@@ -1086,6 +1469,10 @@ def main() -> None:
     resolved_mode = _resolve_mode(cfg.mode, as_of, cfg.window_minutes)
     build_event_payload = pipeline.build_event_payload
     id_counter = [cfg.event_id_start]
+
+    if resolved_mode == "vision":
+        _run_vision_mode(build_event_payload, cfg, id_counter)
+        return
 
     if cfg.backtest_time:
         if resolved_mode == "preopen":
