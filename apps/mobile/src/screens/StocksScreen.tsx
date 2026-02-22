@@ -158,6 +158,7 @@ const styles = StyleSheet.create({
   hero: {
     marginHorizontal: 14,
     marginTop: 10,
+    marginBottom: 12,
     borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -211,8 +212,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 130,
+    paddingTop: 0,
+    paddingBottom: 24,
     gap: 12,
   },
   windowCard: {

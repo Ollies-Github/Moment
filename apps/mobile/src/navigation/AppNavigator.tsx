@@ -5,7 +5,7 @@ import { DevScreen } from "../screens/DevScreen";
 import { F1Screen } from "../screens/F1Screen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { StocksScreen } from "../screens/StocksScreen";
-import { colors, layout } from "../theme/tokens";
+import { colors } from "../theme/tokens";
 
 const Tabs = createBottomTabNavigator();
 
@@ -21,16 +21,6 @@ export function AppNavigator() {
           height: 84,
           paddingBottom: 10,
           paddingTop: 8,
-          position: "absolute",
-          left: 12,
-          right: 12,
-          bottom: 10,
-          borderRadius: layout.radiusLg,
-          shadowColor: "#000",
-          shadowOpacity: 0.18,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 5,
         },
         tabBarActiveTintColor: colors.accentBlue,
         tabBarInactiveTintColor: colors.muted,
