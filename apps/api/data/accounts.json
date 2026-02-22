@@ -39,21 +39,5 @@
       "updated_at_ms": 1771745920311
     }
   ],
-  "picks": [
-    {
-      "bet_id": "944b0ba3-f848-44fe-8fdf-a8d82ea204a0",
-      "user_id": "usr_28de5c5c",
-      "market_id": "mkt_f1_1771747673054_2e1bc8",
-      "selection": "YES",
-      "stake": 1,
-      "fee": 0.012,
-      "effective_stake": 0.988,
-      "accepted_price": 0.5,
-      "potential_payout": 1.976,
-      "status": "settled_won",
-      "created_at_ms": 1771747676836,
-      "payout": 1.976,
-      "settled_at_ms": 1771747679649
-    }
-  ]
+  "picks": []
 }

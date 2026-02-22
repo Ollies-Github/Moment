@@ -28,6 +28,9 @@ from typing import Any
 
 import requests
 
+_EMIT_API_BASE_URL: str | None = None
+_EMIT_API_TIMEOUT_SECONDS = 3
+
 
 @dataclass
 class ActiveEvent:
@@ -80,6 +83,7 @@ class Config:
     intraday_target_scale: float
     event_id_start: int
     vision_input: str
+    api_base_url: str
 
 
 def _iso(dt: datetime) -> str:
@@ -190,6 +194,13 @@ def _parse_args() -> argparse.Namespace:
         help="Path to JSON/NDJSON file with vision starter/resolution signals. "
         "Unset => read JSON lines from stdin.",
     )
+    parser.add_argument(
+        "--api-base-url",
+        type=str,
+        default=os.getenv("MOMENT_API_BASE_URL", "http://127.0.0.1:4000"),
+        help="Optional Moment API base URL (for example http://127.0.0.1:4000). "
+        "When set, emitted lifecycle events are POSTed to /scanner/events.",
+    )
     return parser.parse_args()
 
 
@@ -239,11 +250,41 @@ def _build_config(scanner: Any, args: argparse.Namespace) -> Config:
         intraday_target_scale=max(0.01, float(args.intraday_target_scale)),
         event_id_start=max(1, int(args.event_id_start)),
         vision_input=str(args.vision_input or "").strip(),
+        api_base_url=str(args.api_base_url or "").strip(),
     )
+
+
+def _normalize_api_base_url(value: str) -> str:
+    return value.rstrip("/")
+
+
+def _set_emit_api_base_url(value: str) -> None:
+    global _EMIT_API_BASE_URL
+    normalized = _normalize_api_base_url(value.strip()) if value else ""
+    _EMIT_API_BASE_URL = normalized if normalized else None
+
+
+def _post_event_to_api(payload: dict[str, Any]) -> None:
+    if _EMIT_API_BASE_URL is None:
+        return
+    url = f"{_EMIT_API_BASE_URL}/scanner/events"
+    try:
+        response = requests.post(url, json=payload, timeout=_EMIT_API_TIMEOUT_SECONDS)
+    except Exception as exc:
+        print(f"[scanner_events] API post failed url={url}: {exc}", file=sys.stderr)
+        return
+
+    if response.status_code >= 400:
+        body = response.text.strip()
+        print(
+            f"[scanner_events] API post rejected status={response.status_code} url={url} body={body}",
+            file=sys.stderr,
+        )
 
 
 def _emit(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, indent=2), flush=True)
+    _post_event_to_api(payload)
 
 
 def _market_open_utc(as_of: datetime) -> datetime:
@@ -1461,9 +1502,15 @@ def main() -> None:
     args = _parse_args()
     scanner, pipeline = _import_modules()
     cfg = _build_config(scanner, args)
+    _set_emit_api_base_url(cfg.api_base_url)
 
     scanner.PREOPEN_WINDOW = cfg.window_minutes
     scanner.BACKTEST_TIME_STR = cfg.backtest_time_str
+    if cfg.api_base_url:
+        print(
+            f"[scanner_events] API emit enabled -> {_normalize_api_base_url(cfg.api_base_url)}/scanner/events",
+            file=sys.stderr,
+        )
 
     as_of = cfg.backtest_time if cfg.backtest_time else datetime.now(timezone.utc)
     resolved_mode = _resolve_mode(cfg.mode, as_of, cfg.window_minutes)
