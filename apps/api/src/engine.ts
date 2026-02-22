@@ -21,7 +21,15 @@ import type {
   Wallet,
 } from "./types";
 
-const DEFAULT_VIRTUAL_LIQUIDITY = 1000;
+const readPositiveNumber = (raw: string | undefined, fallback: number): number => {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+// Keep this low enough that small stakes (e.g. €1/€5/€10) visibly move prices.
+const DEFAULT_VIRTUAL_LIQUIDITY = readPositiveNumber(process.env.AMM_VIRTUAL_LIQUIDITY, 120);
 const DEFAULT_FEE_BPS = 120;
 const DEFAULT_INITIAL_PROBABILITY = 0.5;
 const DEFAULT_STARTING_BALANCE = 100;
@@ -455,6 +463,7 @@ export class MarketEngine {
       bet.payout = won ? bet.potential_payout : 0;
       bet.settled_at_ms = now;
       this.bets.set(bet.bet_id, bet);
+      this.emit("bet.updated", bet);
 
       const wallet = this.ensureWallet(bet.user_id);
       if (won) wallet.balance += bet.payout;
@@ -586,6 +595,7 @@ export class MarketEngine {
   private loadState(): void {
     mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
     let legacyMarkets: Market[] = [];
+    let marketsMigrated = false;
 
     if (existsSync(ACCOUNTS_FILE)) {
       try {
@@ -611,13 +621,36 @@ export class MarketEngine {
       try {
         const raw = readFileSync(MARKETS_FILE, "utf8");
         const parsed = JSON.parse(raw) as PersistedMarketsState;
-        for (const market of parsed.markets ?? []) this.markets.set(market.market_id, market);
+        for (const market of parsed.markets ?? []) {
+          if (
+            market.status === "open" &&
+            market.amm_state.trade_count === 0 &&
+            market.amm_state.virtual_liquidity !== DEFAULT_VIRTUAL_LIQUIDITY
+          ) {
+            const initialProbability = clamp(market.market_making.initial_probability_yes, 0.01, 0.99);
+            const nextAmm = createAmmState(
+              initialProbability,
+              DEFAULT_VIRTUAL_LIQUIDITY,
+              market.market_making.fee_bps,
+            );
+            market.amm_state = nextAmm;
+            market.prices = getImpliedProbabilities(nextAmm);
+            market.market_making.virtual_liquidity = DEFAULT_VIRTUAL_LIQUIDITY;
+            market.timestamps.updated_at_ms = Date.now();
+            marketsMigrated = true;
+          }
+          this.markets.set(market.market_id, market);
+        }
       } catch {
         this.markets.clear();
       }
     } else if (legacyMarkets.length > 0) {
       for (const market of legacyMarkets) this.markets.set(market.market_id, market);
       // One-time migration from legacy accounts.json markets storage.
+      this.persistState();
+    }
+
+    if (marketsMigrated) {
       this.persistState();
     }
   }

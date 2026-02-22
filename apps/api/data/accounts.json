@@ -30,45 +30,60 @@
     },
     {
       "user_id": "usr_28de5c5c",
-      "balance": 100,
-      "updated_at_ms": 1771708054573
+      "balance": 12.592182185610284,
+      "updated_at_ms": 1771745268400
     },
     {
       "user_id": "usr_ebe21a38",
-      "balance": 64.76,
-      "updated_at_ms": 1771743910678
+      "balance": 103.34581797366917,
+      "updated_at_ms": 1771745268400
     }
   ],
   "picks": [
     {
-      "bet_id": "dedab75d-9979-4953-b58c-cf8d78afd1af",
+      "bet_id": "e07ff64f-780f-4364-b823-81d7d0f306cb",
+      "user_id": "usr_28de5c5c",
+      "market_id": "mkt_f1_1771745236223_dbeb74",
+      "selection": "NO",
+      "stake": 1,
+      "fee": 0.012,
+      "effective_stake": 0.988,
+      "accepted_price": 0.5,
+      "potential_payout": 1.976,
+      "status": "settled_won",
+      "created_at_ms": 1771745242603,
+      "payout": 1.976,
+      "settled_at_ms": 1771745268400
+    },
+    {
+      "bet_id": "708b5cb0-7cc6-4f12-942f-d14751ca4ff8",
       "user_id": "usr_ebe21a38",
-      "market_id": "mkt_f1_1771736148407_ce4320",
+      "market_id": "mkt_f1_1771745236223_dbeb74",
       "selection": "YES",
       "stake": 5,
       "fee": 0.06,
       "effective_stake": 4.94,
-      "accepted_price": 0.5,
-      "potential_payout": 9.88,
+      "accepted_price": 0.4959169504413661,
+      "potential_payout": 9.961345333333334,
       "status": "settled_lost",
-      "created_at_ms": 1771736172635,
+      "created_at_ms": 1771745250904,
       "payout": 0,
-      "settled_at_ms": 1771736296554
+      "settled_at_ms": 1771745268400
     },
     {
-      "bet_id": "ddb50c6a-10f8-42ef-b73d-97e84ab9354f",
-      "user_id": "usr_ebe21a38",
-      "market_id": "mkt_f1_1771738842337_380c72",
+      "bet_id": "601feb87-8161-4d9e-a308-d89e6f9a9edf",
+      "user_id": "usr_28de5c5c",
+      "market_id": "mkt_f1_1771745236223_dbeb74",
       "selection": "NO",
-      "stake": 10,
-      "fee": 0.12,
-      "effective_stake": 9.88,
-      "accepted_price": 0.5,
-      "potential_payout": 19.76,
+      "stake": 5,
+      "fee": 0.06,
+      "effective_stake": 4.94,
+      "accepted_price": 0.484308493742456,
+      "potential_payout": 10.200110185610285,
       "status": "settled_won",
-      "created_at_ms": 1771738881691,
-      "payout": 19.76,
-      "settled_at_ms": 1771739005004
+      "created_at_ms": 1771745262457,
+      "payout": 10.200110185610285,
+      "settled_at_ms": 1771745268400
     }
   ]
 }

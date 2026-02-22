@@ -21,15 +21,21 @@ const positiveSelectionFor = (market: Market): Selection =>
 const negativeSelectionFor = (market: Market): Selection =>
   market.market_type === "binary_higher_lower" ? "LOWER" : "NO";
 
+const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
+
 export function StocksScreen() {
   const { userId, markets, bets, wallet, setMarkets, setBets, setWallet } = useAppStore();
-  const [modalMarket, setModalMarket] = useState<Market>();
+  const [modalMarketId, setModalMarketId] = useState<string>();
   const [modalSelection, setModalSelection] = useState<Selection>();
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activePick, setActivePick] = useState<{ marketId: string; selection: Selection }>();
 
   const stockMarkets = useMemo(() => markets.filter((market) => market.sport === "Stocks"), [markets]);
+  const modalMarket = useMemo(
+    () => (modalMarketId ? markets.find((market) => market.market_id === modalMarketId) : undefined),
+    [markets, modalMarketId],
+  );
 
   const stockMarketIds = useMemo(() => new Set(stockMarkets.map((m) => m.market_id)), [stockMarkets]);
   const stockBets = useMemo(
@@ -54,7 +60,7 @@ export function StocksScreen() {
   }, [setBets, setMarkets, setWallet, userId]);
 
   const openStake = useCallback((market: Market, selection: Selection) => {
-    setModalMarket(market);
+    setModalMarketId(market.market_id);
     setModalSelection(selection);
     setActivePick({ marketId: market.market_id, selection });
     setModalVisible(true);
@@ -62,6 +68,7 @@ export function StocksScreen() {
 
   const closeStake = useCallback(() => {
     setModalVisible(false);
+    setModalMarketId(undefined);
     setActivePick(undefined);
   }, []);
 
@@ -114,14 +121,14 @@ export function StocksScreen() {
                   onPress={() => openStake(item, negativeSelection)}
                 >
                   <Text style={styles.sideLabel}>DOWN</Text>
-                  <Text style={styles.sidePrice}>{Math.round(item.prices.no * 100)}%</Text>
+                  <Text style={styles.sidePrice}>{formatPercent(item.prices.no)}</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.sideButton, styles.sideUp, isUpSelected && styles.sideButtonSelectedUp]}
                   onPress={() => openStake(item, positiveSelection)}
                 >
                   <Text style={styles.sideLabel}>UP</Text>
-                  <Text style={styles.sidePrice}>{Math.round(item.prices.yes * 100)}%</Text>
+                  <Text style={styles.sidePrice}>{formatPercent(item.prices.yes)}</Text>
                 </Pressable>
               </View>
             </View>

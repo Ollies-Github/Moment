@@ -199,6 +199,7 @@ export type PublishEventName =
   | "market.settled"
   | "market.suspended"
   | "bet.accepted"
+  | "bet.updated"
   | "bet.rejected"
   | "wallet.updated"
   | "connection.state";
