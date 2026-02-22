@@ -148,6 +148,7 @@ interface MarketEngineOptions {
   maxOpenDurationMs?: number;
   safetySweepIntervalMs?: number;
   triggerCooldownMs?: number;
+  enableSafetyTimeouts?: boolean;
 }
 
 interface MarketEngineDeps {
@@ -160,6 +161,7 @@ export class MarketEngine {
   private readonly maxOpenDurationMs: number;
   private readonly safetySweepIntervalMs: number;
   private readonly triggerCooldownMs: number;
+  private readonly enableSafetyTimeouts: boolean;
 
   private readonly markets = new Map<string, Market>();
   private readonly bets = new Map<string, Bet>();
@@ -181,6 +183,7 @@ export class MarketEngine {
     this.maxOpenDurationMs = options.maxOpenDurationMs ?? 90_000;
     this.safetySweepIntervalMs = options.safetySweepIntervalMs ?? 2_000;
     this.triggerCooldownMs = options.triggerCooldownMs ?? 45_000;
+    this.enableSafetyTimeouts = options.enableSafetyTimeouts ?? false;
     this.loadState();
     if (!this.findUserByUsername("demo")) {
       this.ensureUser("demo-user-001", "demo", DEFAULT_DEMO_PIN);
@@ -190,6 +193,7 @@ export class MarketEngine {
   }
 
   start(): void {
+    if (!this.enableSafetyTimeouts) return;
     if (this.safetyHandle) return;
     this.safetyHandle = setInterval(() => {
       this.suspendStaleMarkets();
@@ -509,25 +513,6 @@ export class MarketEngine {
     this.betsByUser.clear();
     this.triggerCooldowns.clear();
     this.persistState();
-    this.seed();
-  }
-
-  seed(): void {
-    if (this.markets.size > 0) return;
-
-    const seedInputs: StarterInput[] = [
-      { sport: "F1", event_type: "overtake_in_x_laps", context: { laps: 2, driver_a: "Norris", driver_b: "Verstappen" } },
-      { sport: "F1", event_type: "overtake_in_x_laps", context: { laps: 3, driver_a: "Leclerc", driver_b: "Piastri" } },
-      { sport: "Stocks", event_type: "stock_up_down_window", context: { symbol: "TSLA", window_minutes: 5 } },
-      { sport: "Stocks", event_type: "stock_up_down_window", context: { symbol: "NVDA", window_minutes: 5 } },
-    ];
-
-    for (const starter of seedInputs) {
-      const market = this.buildMarketFromStarter(starter);
-      this.markets.set(market.market_id, market);
-      this.emit("market.opened", market);
-    }
-    this.persistState();
   }
 
   private emit(eventName: PublishEventName, payload: unknown): void {
@@ -597,7 +582,7 @@ export class MarketEngine {
   private loadState(): void {
     mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
     let legacyMarkets: Market[] = [];
-    let marketsMigrated = false;
+    let resetPersistedMarkets = false;
 
     if (existsSync(ACCOUNTS_FILE)) {
       try {
@@ -619,70 +604,24 @@ export class MarketEngine {
       }
     }
 
+    // Markets are runtime-only for MVP: they appear only from explicit API calls.
+    // We intentionally clear any persisted/legacy markets on startup.
     if (existsSync(MARKETS_FILE)) {
       try {
         const raw = readFileSync(MARKETS_FILE, "utf8");
         const parsed = JSON.parse(raw) as PersistedMarketsState;
-        for (const market of parsed.markets ?? []) {
-          let changed = false;
-
-          // F1 markets are manual-close only for MVP: disable any safety timeout clock.
-          if (
-            isF1Market(market) &&
-            (market.safety.max_open_duration_ms !== 0 ||
-              market.safety.expires_at_ms !== 0 ||
-              market.safety.timeout_triggered)
-          ) {
-            market.safety.max_open_duration_ms = 0;
-            market.safety.expires_at_ms = 0;
-            market.safety.timeout_triggered = false;
-            changed = true;
-          }
-
-          // Reopen any F1 market that was only suspended by the previous timeout rule.
-          if (
-            isF1Market(market) &&
-            market.status === "suspended" &&
-            market.context?.suspension_reason === "safety_timeout"
-          ) {
-            market.status = "open";
-            market.timestamps.updated_at_ms = Date.now();
-            if (market.timestamps.suspended_at_ms) delete market.timestamps.suspended_at_ms;
-            const { suspension_reason: _ignore, ...restContext } = market.context;
-            market.context = restContext;
-            changed = true;
-          }
-
-          if (
-            market.status === "open" &&
-            market.amm_state.trade_count === 0 &&
-            market.amm_state.virtual_liquidity !== DEFAULT_VIRTUAL_LIQUIDITY
-          ) {
-            const initialProbability = clamp(market.market_making.initial_probability_yes, 0.01, 0.99);
-            const nextAmm = createAmmState(
-              initialProbability,
-              DEFAULT_VIRTUAL_LIQUIDITY,
-              market.market_making.fee_bps,
-            );
-            market.amm_state = nextAmm;
-            market.prices = getImpliedProbabilities(nextAmm);
-            market.market_making.virtual_liquidity = DEFAULT_VIRTUAL_LIQUIDITY;
-            market.timestamps.updated_at_ms = Date.now();
-            changed = true;
-          }
-          if (changed) marketsMigrated = true;
-          this.markets.set(market.market_id, market);
+        if ((parsed.markets ?? []).length > 0) {
+          resetPersistedMarkets = true;
         }
       } catch {
-        this.markets.clear();
+        // Ignore parse issues and continue with a clean in-memory market state.
       }
-    } else if (legacyMarkets.length > 0) {
-      for (const market of legacyMarkets) this.markets.set(market.market_id, market);
-      // One-time migration from legacy accounts.json markets storage.
-      this.persistState();
     }
-
-    if (marketsMigrated) {
+    if (legacyMarkets.length > 0) {
+      resetPersistedMarkets = true;
+    }
+    this.markets.clear();
+    if (resetPersistedMarkets) {
       this.persistState();
     }
   }
@@ -760,7 +699,7 @@ export class MarketEngine {
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
     const requestedDurationMs =
       typeof input.open_duration_ms === "number" ? input.open_duration_ms : this.maxOpenDurationMs;
-    const safetyTimeoutEnabled = input.sport !== "F1";
+    const safetyTimeoutEnabled = this.enableSafetyTimeouts && input.sport !== "F1";
     const marketDurationMs = safetyTimeoutEnabled
       ? clamp(requestedDurationMs, MIN_MARKET_DURATION_MS, MAX_MARKET_DURATION_MS)
       : 0;
@@ -802,6 +741,7 @@ export class MarketEngine {
   }
 
   private suspendStaleMarkets(): void {
+    if (!this.enableSafetyTimeouts) return;
     const now = Date.now();
     let changed = false;
     for (const market of this.markets.values()) {

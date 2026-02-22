@@ -61,6 +61,13 @@ EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm --dir apps/mobile de
 - `POST /starter/events`
 - `POST /closer/resolutions`
 
+## Market lifecycle behavior
+- No seeded startup markets.
+- No automatic starter interval.
+- No automatic timeout suspension.
+- Markets are created only via API calls (for example `POST /dev/simulate/starter-event` or `POST /starter/events`).
+- Markets are closed/settled only from API-triggered actions.
+
 ## WebSocket events
 - `market.opened`
 - `market.updated`
