@@ -271,6 +271,76 @@
         "timeout_triggered": false
       },
       "settlement_outcome": "NO"
+    },
+    {
+      "market_id": "mkt_f1_1771738842337_380c72",
+      "sport": "F1",
+      "session_id": "sc_watch_run",
+      "market_type": "binary_yes_no",
+      "question": "Will the safety car be on for longer than 3.5 laps?",
+      "context": {
+        "source_event_type": "safety_car_start",
+        "source_trigger_type": "SAFETY_CAR_START",
+        "source_event_id": "evt_9cfdc2cf",
+        "source_timestamp_ms": 1771738842051,
+        "source_confidence": 0.9,
+        "lap_start": null,
+        "window_seconds": 600,
+        "ocr_text": "= --\nSAFETY CAR |\nOf im =F\nINCIDENT\n",
+        "market_line_laps": 3.5,
+        "detector": "safety_car_banner_ocr",
+        "resolution_event_id": "res_78cfb153",
+        "resolution_confidence": 0,
+        "resolution_reason": "safety_car_ending_detected",
+        "resolution_context": {
+          "lap_start": 1,
+          "lap_end": 3,
+          "delta_laps": 2,
+          "over_3_5_laps": false,
+          "ocr_text": "a %: “ee ’ | ae\n. ve\nLAP 3/44\nO© mr FIR\nENDING\nPIT STOPS\n"
+        },
+        "resolved_at_ms": 1771739004328,
+        "close_reason": "settlement_requested"
+      },
+      "open_at_ms": 1771738842337,
+      "settlement_key": "f1_safety_car_start",
+      "starter_event_id": "380c7235-8b09-466f-86ca-6b45adb3a824",
+      "close_control": {
+        "mode": "backend_signal",
+        "closer_key": "mock_closer_v1"
+      },
+      "market_making": {
+        "model": "binary_amm",
+        "initial_probability_yes": 0.5,
+        "virtual_liquidity": 1000,
+        "fee_bps": 120
+      },
+      "status": "settled",
+      "amm_state": {
+        "yes_pool": 500,
+        "no_pool": 509.88,
+        "fee_bps": 120,
+        "virtual_liquidity": 1000,
+        "total_fees_collected": 0.12,
+        "total_volume": 10,
+        "trade_count": 1
+      },
+      "prices": {
+        "yes": 0.49510832970253893,
+        "no": 0.5048916702974611
+      },
+      "timestamps": {
+        "open_at_ms": 1771738842337,
+        "updated_at_ms": 1771739005004,
+        "closed_at_ms": 1771739004702,
+        "settled_at_ms": 1771739005004
+      },
+      "safety": {
+        "max_open_duration_ms": 600000,
+        "expires_at_ms": 1771739442337,
+        "timeout_triggered": false
+      },
+      "settlement_outcome": "NO"
     }
   ]
 }

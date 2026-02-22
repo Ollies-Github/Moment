@@ -1,27 +1,13 @@
 import cors from "@fastify/cors";
-import { MockBetCloserService } from "@moment/ai-bet-closer";
-import { MockBetStarterService } from "@moment/ai-bet-starter";
-import { TypedEventBus } from "@moment/event-bus";
-import type { BetCloseTrigger, BetStarterEvent, EngineEventMap } from "@moment/shared";
 import Fastify from "fastify";
 import { Server as SocketIOServer } from "socket.io";
 
 import { MarketEngine } from "./engine";
+import { MockBetCloserService, MockBetStarterService, type BetCloseTrigger, type BetStarterEvent } from "./mock-services";
 import { registerRoutes } from "./routes";
 
 const PORT = Number(process.env.PORT ?? 4000);
 const HOST = process.env.HOST ?? "0.0.0.0";
-
-// Shared event bus wiring all AI services together
-const bus = new TypedEventBus<EngineEventMap>();
-
-const starter = new MockBetStarterService(bus, {
-  // Set STARTER_INTERVAL_MS env var to auto-fire (e.g. 60000 for 1 min).
-  // Default 0 = only fire when /dev/simulate/trigger-starter is called.
-  intervalMs: Number(process.env.STARTER_INTERVAL_MS ?? 0),
-});
-
-const closer = new MockBetCloserService(bus);
 
 const fastify = Fastify({ logger: true });
 await fastify.register(cors, { origin: true, credentials: true });
@@ -41,19 +27,22 @@ const engine = new MarketEngine({
   },
 });
 
-// starter.detected → create market via simulateStarterEvent (same path as /dev/simulate/starter-event)
-bus.on("starter.detected", (event: BetStarterEvent) => {
-  const sport = event.sport === "F1" || event.sport === "Stocks" ? event.sport : "F1";
-  engine.simulateStarterEvent({
-    sport,
-    event_type: event.event_type,
-    session_id: event.session_id,
-    context: event.context,
-  });
-});
+const starter = new MockBetStarterService(
+  (event: BetStarterEvent) => {
+    engine.simulateStarterEvent({
+      sport: event.sport,
+      event_type: event.event_type,
+      session_id: event.session_id,
+      context: event.context,
+    });
+  },
+  {
+    // Set STARTER_INTERVAL_MS to auto-fire demo events (e.g. 60000 for 1 min).
+    intervalMs: Number(process.env.STARTER_INTERVAL_MS ?? 0),
+  },
+);
 
-// closer.triggered → close the market, then settle with a random outcome 2 s later
-bus.on("closer.triggered", async (trigger: BetCloseTrigger) => {
+const closer = new MockBetCloserService(async (trigger: BetCloseTrigger) => {
   const market = engine.getMarket(trigger.market_id);
   if (!market) return;
 

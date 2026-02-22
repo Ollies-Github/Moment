@@ -1,8 +1,7 @@
-import type { MockBetCloserService } from "@moment/ai-bet-closer";
-import type { MockBetStarterService } from "@moment/ai-bet-starter";
 import type { FastifyInstance } from "fastify";
 
 import { EngineError, type MarketEngine } from "./engine";
+import type { MockBetCloserService, MockBetStarterService } from "./mock-services";
 import {
   betRequestSchema,
   closeMarketBodySchema,
