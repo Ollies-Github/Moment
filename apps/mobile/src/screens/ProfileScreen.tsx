@@ -21,6 +21,7 @@ import { useStripe } from "@stripe/stripe-react-native";
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
 import { colors } from "../theme/tokens";
+import type { Bet } from "../types/contracts";
 
 // ─── Apple Pay-style success sheet ───────────────────────────────────────────
 
@@ -527,8 +528,17 @@ function WithdrawModal({
 
 // ─── Profile Screen ───────────────────────────────────────────────────────────
 
+type BetUiStatus = "LIVE" | "WON" | "LOST";
+
+const toBetUiStatus = (status: Bet["status"]): BetUiStatus | undefined => {
+    if (status === "accepted") return "LIVE";
+    if (status === "settled_won") return "WON";
+    if (status === "settled_lost") return "LOST";
+    return undefined;
+};
+
 export function ProfileScreen() {
-    const { account, wallet, bets } = useAppStore();
+    const { account, wallet, bets, markets } = useAppStore();
     const [showDeposit, setShowDeposit] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
     const [successSheet, setSuccessSheet] = useState<string | null>(null);
@@ -543,14 +553,38 @@ export function ProfileScreen() {
         );
     };
 
+    const marketById = useMemo(
+        () => new Map(markets.map((market) => [market.market_id, market])),
+        [markets],
+    );
+
+    const picks = useMemo(
+        () =>
+            bets
+                .map((bet) => {
+                    const uiStatus = toBetUiStatus(bet.status);
+                    if (!uiStatus) return undefined;
+                    return {
+                        bet,
+                        uiStatus,
+                        question: marketById.get(bet.market_id)?.question ?? "Prediction",
+                    };
+                })
+                .filter(
+                    (
+                        value,
+                    ): value is { bet: Bet; uiStatus: BetUiStatus; question: string } => Boolean(value),
+                ),
+        [bets, marketById],
+    );
+
     const metrics = useMemo(() => {
-        const picks = bets.filter((b) => b.status !== "rejected");
         return {
             total: picks.length,
-            won: picks.filter((b) => b.status === "settled_won").length,
-            lost: picks.filter((b) => b.status === "settled_lost").length,
+            won: picks.filter((b) => b.uiStatus === "WON").length,
+            lost: picks.filter((b) => b.uiStatus === "LOST").length,
         };
-    }, [bets]);
+    }, [picks]);
 
     return (
         <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -599,6 +633,39 @@ export function ProfileScreen() {
                             <Text style={styles.fundBtnText}>Withdraw Funds</Text>
                         </Pressable>
                     </View>
+                </View>
+
+                <View style={styles.picksCard}>
+                    <Text style={styles.blockTitle}>Predictions</Text>
+                    {picks.length === 0 ? (
+                        <Text style={styles.picksEmpty}>No predictions yet.</Text>
+                    ) : (
+                        picks.slice(0, 8).map(({ bet, uiStatus, question }) => (
+                            <View key={bet.bet_id} style={styles.pickRow}>
+                                <View style={styles.pickBody}>
+                                    <Text style={styles.pickQuestion} numberOfLines={2}>
+                                        {question}
+                                    </Text>
+                                    <Text style={styles.pickMeta}>
+                                        Stake €{bet.stake.toFixed(2)}
+                                        {uiStatus === "WON" && typeof bet.payout === "number"
+                                            ? ` • +€${bet.payout.toFixed(2)}`
+                                            : ""}
+                                    </Text>
+                                </View>
+                                <View
+                                    style={[
+                                        styles.pickStatus,
+                                        uiStatus === "LIVE" && styles.pickStatusLive,
+                                        uiStatus === "WON" && styles.pickStatusWon,
+                                        uiStatus === "LOST" && styles.pickStatusLost,
+                                    ]}
+                                >
+                                    <Text style={styles.pickStatusText}>{uiStatus}</Text>
+                                </View>
+                            </View>
+                        ))
+                    )}
                 </View>
 
                 {txHistory.length > 0 && (
@@ -690,6 +757,67 @@ const styles = StyleSheet.create({
     addBtn: { borderColor: "#58dbad", backgroundColor: "#17483d" },
     withdrawFundBtn: { borderColor: "#c26d83", backgroundColor: "#4a2330" },
     fundBtnText: { color: colors.text, fontWeight: "800" },
+    picksCard: {
+        borderWidth: 1, borderColor: colors.border, borderRadius: 16,
+        padding: 14, backgroundColor: colors.surface, gap: 10,
+    },
+    picksEmpty: {
+        color: colors.muted,
+        fontSize: 13,
+        fontWeight: "600",
+    },
+    pickRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 10,
+        backgroundColor: "#0f172a",
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+    },
+    pickBody: {
+        flex: 1,
+        gap: 4,
+    },
+    pickQuestion: {
+        color: colors.text,
+        fontSize: 13,
+        fontWeight: "700",
+        lineHeight: 18,
+    },
+    pickMeta: {
+        color: colors.muted,
+        fontSize: 11,
+        fontWeight: "600",
+    },
+    pickStatus: {
+        borderRadius: 999,
+        borderWidth: 1,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        minWidth: 58,
+        alignItems: "center",
+    },
+    pickStatusLive: {
+        borderColor: "#4f9ef8",
+        backgroundColor: "rgba(79,158,248,0.18)",
+    },
+    pickStatusWon: {
+        borderColor: "#58dbad",
+        backgroundColor: "rgba(88,219,173,0.18)",
+    },
+    pickStatusLost: {
+        borderColor: "#e87a8a",
+        backgroundColor: "rgba(232,122,138,0.18)",
+    },
+    pickStatusText: {
+        color: colors.text,
+        fontSize: 11,
+        fontWeight: "900",
+        letterSpacing: 0.4,
+    },
 
     // ── Modal overlay ──────────────────────────────────────────────────────────
     overlay: {

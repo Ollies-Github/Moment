@@ -66,6 +66,8 @@ const clamp = (n: number, min: number, max: number): number => Math.max(min, Mat
 const normalizeSelection = (selection: Selection): "YES" | "NO" =>
   selection === "YES" || selection === "HIGHER" ? "YES" : "NO";
 
+const isF1Market = (market: Pick<Market, "sport">): boolean => market.sport === "F1";
+
 const validSelection = (marketType: MarketType, selection: Selection): boolean => {
   if (marketType === "binary_yes_no") return selection === "YES" || selection === "NO";
   return selection === "HIGHER" || selection === "LOWER";
@@ -622,6 +624,35 @@ export class MarketEngine {
         const raw = readFileSync(MARKETS_FILE, "utf8");
         const parsed = JSON.parse(raw) as PersistedMarketsState;
         for (const market of parsed.markets ?? []) {
+          let changed = false;
+
+          // F1 markets are manual-close only for MVP: disable any safety timeout clock.
+          if (
+            isF1Market(market) &&
+            (market.safety.max_open_duration_ms !== 0 ||
+              market.safety.expires_at_ms !== 0 ||
+              market.safety.timeout_triggered)
+          ) {
+            market.safety.max_open_duration_ms = 0;
+            market.safety.expires_at_ms = 0;
+            market.safety.timeout_triggered = false;
+            changed = true;
+          }
+
+          // Reopen any F1 market that was only suspended by the previous timeout rule.
+          if (
+            isF1Market(market) &&
+            market.status === "suspended" &&
+            market.context?.suspension_reason === "safety_timeout"
+          ) {
+            market.status = "open";
+            market.timestamps.updated_at_ms = Date.now();
+            if (market.timestamps.suspended_at_ms) delete market.timestamps.suspended_at_ms;
+            const { suspension_reason: _ignore, ...restContext } = market.context;
+            market.context = restContext;
+            changed = true;
+          }
+
           if (
             market.status === "open" &&
             market.amm_state.trade_count === 0 &&
@@ -637,8 +668,9 @@ export class MarketEngine {
             market.prices = getImpliedProbabilities(nextAmm);
             market.market_making.virtual_liquidity = DEFAULT_VIRTUAL_LIQUIDITY;
             market.timestamps.updated_at_ms = Date.now();
-            marketsMigrated = true;
+            changed = true;
           }
+          if (changed) marketsMigrated = true;
           this.markets.set(market.market_id, market);
         }
       } catch {
@@ -728,7 +760,10 @@ export class MarketEngine {
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
     const requestedDurationMs =
       typeof input.open_duration_ms === "number" ? input.open_duration_ms : this.maxOpenDurationMs;
-    const marketDurationMs = clamp(requestedDurationMs, MIN_MARKET_DURATION_MS, MAX_MARKET_DURATION_MS);
+    const safetyTimeoutEnabled = input.sport !== "F1";
+    const marketDurationMs = safetyTimeoutEnabled
+      ? clamp(requestedDurationMs, MIN_MARKET_DURATION_MS, MAX_MARKET_DURATION_MS)
+      : 0;
     const amm_state = createAmmState(DEFAULT_INITIAL_PROBABILITY, DEFAULT_VIRTUAL_LIQUIDITY, DEFAULT_FEE_BPS);
 
     return {
@@ -760,7 +795,7 @@ export class MarketEngine {
       },
       safety: {
         max_open_duration_ms: marketDurationMs,
-        expires_at_ms: now + marketDurationMs,
+        expires_at_ms: safetyTimeoutEnabled ? now + marketDurationMs : 0,
         timeout_triggered: false,
       },
     };
@@ -771,6 +806,8 @@ export class MarketEngine {
     let changed = false;
     for (const market of this.markets.values()) {
       if (market.status !== "open") continue;
+      if (isF1Market(market)) continue;
+      if (market.safety.max_open_duration_ms <= 0) continue;
       if (now <= market.safety.expires_at_ms) continue;
 
       market.status = "suspended";

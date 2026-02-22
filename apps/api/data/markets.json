@@ -1,21 +1,20 @@
 {
   "markets": [
     {
-      "market_id": "mkt_f1_1771745236223_dbeb74",
+      "market_id": "mkt_f1_1771745834657_31476b",
       "sport": "F1",
-      "session_id": "f1-session-1771745236223",
+      "session_id": "f1-session-1771745834657",
       "market_type": "binary_yes_no",
       "question": "Will Norris overtake Verstappen within 2 laps?",
       "context": {
         "source_event_type": "overtake_in_x_laps",
         "laps": 2,
         "driver_a": "Norris",
-        "driver_b": "Verstappen",
-        "close_reason": "manual_dev_trigger"
+        "driver_b": "Verstappen"
       },
-      "open_at_ms": 1771745236223,
+      "open_at_ms": 1771745834657,
       "settlement_key": "f1_overtake_in_x_laps",
-      "starter_event_id": "dbeb749b-17d7-4d0f-a04b-ae8c9e4438eb",
+      "starter_event_id": "31476bc0-9f78-4840-9409-7645665913e7",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -26,37 +25,34 @@
         "virtual_liquidity": 120,
         "fee_bps": 120
       },
-      "status": "settled",
+      "status": "open",
       "amm_state": {
-        "yes_pool": 64.94,
-        "no_pool": 65.928,
+        "yes_pool": 60,
+        "no_pool": 60,
         "fee_bps": 120,
         "virtual_liquidity": 120,
-        "total_fees_collected": 0.132,
-        "total_volume": 11,
-        "trade_count": 3
+        "total_fees_collected": 0,
+        "total_volume": 0,
+        "trade_count": 0
       },
       "prices": {
-        "yes": 0.4962252040223737,
-        "no": 0.5037747959776263
+        "yes": 0.5,
+        "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1771745236223,
-        "updated_at_ms": 1771745268400,
-        "closed_at_ms": 1771745266094,
-        "settled_at_ms": 1771745268400
+        "open_at_ms": 1771745834657,
+        "updated_at_ms": 1771746225489
       },
       "safety": {
-        "max_open_duration_ms": 90000,
-        "expires_at_ms": 1771745326223,
+        "max_open_duration_ms": 0,
+        "expires_at_ms": 0,
         "timeout_triggered": false
-      },
-      "settlement_outcome": "NO"
+      }
     },
     {
-      "market_id": "mkt_f1_1771745236223_c33140",
+      "market_id": "mkt_f1_1771745834658_9abda7",
       "sport": "F1",
-      "session_id": "f1-session-1771745236223",
+      "session_id": "f1-session-1771745834658",
       "market_type": "binary_yes_no",
       "question": "Will Leclerc overtake Piastri within 3 laps?",
       "context": {
@@ -65,9 +61,9 @@
         "driver_a": "Leclerc",
         "driver_b": "Piastri"
       },
-      "open_at_ms": 1771745236223,
+      "open_at_ms": 1771745834658,
       "settlement_key": "f1_overtake_in_x_laps",
-      "starter_event_id": "c331403f-1035-42ac-90b5-b694bfab20b0",
+      "starter_event_id": "9abda714-154a-4035-a91c-e108eb4da2ca",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -80,42 +76,43 @@
       },
       "status": "open",
       "amm_state": {
-        "yes_pool": 60,
+        "yes_pool": 69.88,
         "no_pool": 60,
         "fee_bps": 120,
         "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
+        "total_fees_collected": 0.12,
+        "total_volume": 10,
+        "trade_count": 1
       },
       "prices": {
-        "yes": 0.5,
-        "no": 0.5
+        "yes": 0.5380351093316907,
+        "no": 0.4619648906683092
       },
       "timestamps": {
-        "open_at_ms": 1771745236223,
-        "updated_at_ms": 1771745236223
+        "open_at_ms": 1771745834658,
+        "updated_at_ms": 1771746225489
       },
       "safety": {
-        "max_open_duration_ms": 90000,
-        "expires_at_ms": 1771745326223,
+        "max_open_duration_ms": 0,
+        "expires_at_ms": 0,
         "timeout_triggered": false
       }
     },
     {
-      "market_id": "mkt_stocks_1771745236223_3dc4e3",
+      "market_id": "mkt_stocks_1771745834658_658def",
       "sport": "Stocks",
-      "session_id": "stocks-session-1771745236223",
+      "session_id": "stocks-session-1771745834658",
       "market_type": "binary_higher_lower",
       "question": "Will price be HIGHER in the next 5 minutes?",
       "context": {
         "source_event_type": "stock_up_down_window",
         "symbol": "TSLA",
-        "window_minutes": 5
+        "window_minutes": 5,
+        "suspension_reason": "safety_timeout"
       },
-      "open_at_ms": 1771745236223,
+      "open_at_ms": 1771745834658,
       "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "3dc4e3d1-df86-4c8b-8ef1-a7d71aa6ef54",
+      "starter_event_id": "658def21-86b5-4457-9a3e-536ce9f52eb8",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -126,7 +123,7 @@
         "virtual_liquidity": 120,
         "fee_bps": 120
       },
-      "status": "open",
+      "status": "suspended",
       "amm_state": {
         "yes_pool": 60,
         "no_pool": 60,
@@ -141,29 +138,31 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1771745236223,
-        "updated_at_ms": 1771745236223
+        "open_at_ms": 1771745834658,
+        "updated_at_ms": 1771745925558,
+        "suspended_at_ms": 1771745925558
       },
       "safety": {
         "max_open_duration_ms": 90000,
-        "expires_at_ms": 1771745326223,
-        "timeout_triggered": false
+        "expires_at_ms": 1771745924658,
+        "timeout_triggered": true
       }
     },
     {
-      "market_id": "mkt_stocks_1771745236223_785256",
+      "market_id": "mkt_stocks_1771745834659_6c5dd7",
       "sport": "Stocks",
-      "session_id": "stocks-session-1771745236223",
+      "session_id": "stocks-session-1771745834659",
       "market_type": "binary_higher_lower",
       "question": "Will price be HIGHER in the next 5 minutes?",
       "context": {
         "source_event_type": "stock_up_down_window",
         "symbol": "NVDA",
-        "window_minutes": 5
+        "window_minutes": 5,
+        "suspension_reason": "safety_timeout"
       },
-      "open_at_ms": 1771745236223,
+      "open_at_ms": 1771745834659,
       "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "7852561a-774d-4133-b495-ebadd5f3472b",
+      "starter_event_id": "6c5dd729-720c-425b-9b3c-fd6673519c0b",
       "close_control": {
         "mode": "backend_signal",
         "closer_key": "mock_closer_v1"
@@ -174,7 +173,7 @@
         "virtual_liquidity": 120,
         "fee_bps": 120
       },
-      "status": "open",
+      "status": "suspended",
       "amm_state": {
         "yes_pool": 60,
         "no_pool": 60,
@@ -189,13 +188,14 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1771745236223,
-        "updated_at_ms": 1771745236223
+        "open_at_ms": 1771745834659,
+        "updated_at_ms": 1771745925558,
+        "suspended_at_ms": 1771745925558
       },
       "safety": {
         "max_open_duration_ms": 90000,
-        "expires_at_ms": 1771745326223,
-        "timeout_triggered": false
+        "expires_at_ms": 1771745924659,
+        "timeout_triggered": true
       }
     }
   ]
