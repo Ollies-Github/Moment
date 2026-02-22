@@ -28,6 +28,7 @@ export const connectSocket = (handlers: Handlers): Socket => {
   socket.on("market.suspended", handlers.onMarket);
 
   socket.on("bet.accepted", handlers.onBet);
+  socket.on("bet.updated", handlers.onBet);
   socket.on("wallet.updated", handlers.onWallet);
 
   return socket;

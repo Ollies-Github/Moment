@@ -20,6 +20,8 @@ type Props = {
 const isPositiveSelection = (selection: Selection): boolean =>
   selection === "YES" || selection === "HIGHER";
 
+const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
+
 const sideCopy = (
   type: Market["market_type"],
   leftLabel?: string,
@@ -143,7 +145,7 @@ export function MarketCard({
           onPress={() => onPick(market, copy.leftSelection)}
         >
           <Text style={styles.sideLabel}>{copy.left}</Text>
-          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{Math.round(leftPrice * 100)}%</Text>
+          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{formatPercent(leftPrice)}</Text>
         </Pressable>
 
         <Pressable
@@ -157,7 +159,7 @@ export function MarketCard({
           onPress={() => onPick(market, copy.rightSelection)}
         >
           <Text style={styles.sideLabel}>{copy.right}</Text>
-          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{Math.round(rightPrice * 100)}%</Text>
+          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{formatPercent(rightPrice)}</Text>
         </Pressable>
       </View>
     </LinearGradient>
