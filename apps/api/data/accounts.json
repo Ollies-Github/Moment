@@ -4,54 +4,16 @@
       "user_id": "demo-user-001",
       "username": "demo",
       "pin": "1234",
-      "created_at_ms": 1771707110626,
-      "updated_at_ms": 1771707110626
-    },
-    {
-      "user_id": "usr_28de5c5c",
-      "username": "Ollie",
-      "pin": "1234",
-      "created_at_ms": 1771708054573,
-      "updated_at_ms": 1771708054573
-    },
-    {
-      "user_id": "usr_ebe21a38",
-      "username": "jakubn27",
-      "pin": "6767",
-      "created_at_ms": 1771721631042,
-      "updated_at_ms": 1771721631042
+      "created_at_ms": 1771748862512,
+      "updated_at_ms": 1771748862512
     }
   ],
   "wallets": [
     {
       "user_id": "demo-user-001",
       "balance": 100,
-      "updated_at_ms": 1771707110626
-    },
-    {
-      "user_id": "usr_28de5c5c",
-      "balance": 12.592182185610284,
-      "updated_at_ms": 1771745268400
-    },
-    {
-      "user_id": "usr_ebe21a38",
-      "balance": 93.34581797366917,
-      "updated_at_ms": 1771745920311
+      "updated_at_ms": 1771748862512
     }
   ],
-  "picks": [
-    {
-      "bet_id": "3c3168e4-08ba-457e-b706-f40db3fb729e",
-      "user_id": "usr_ebe21a38",
-      "market_id": "mkt_f1_1771745834658_9abda7",
-      "selection": "YES",
-      "stake": 10,
-      "fee": 0.12,
-      "effective_stake": 9.88,
-      "accepted_price": 0.5,
-      "potential_payout": 19.76,
-      "status": "accepted",
-      "created_at_ms": 1771745920311
-    }
-  ]
+  "picks": []
 }

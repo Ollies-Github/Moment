@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from uuid import uuid4
 
 import cv2
@@ -38,8 +39,23 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Sampled processing FPS for file sources (for faster-than-realtime offline analysis).",
     )
+    parser.add_argument(
+        "--realtime-file",
+        action="store_true",
+        help="Throttle local file playback to wall-clock time (1x by default).",
+    )
+    parser.add_argument(
+        "--playback-rate",
+        type=float,
+        default=1.0,
+        help="Playback rate used with --realtime-file (1.0 = real time).",
+    )
     parser.add_argument("--show", action="store_true", help="Show debug overlay window.")
     parser.add_argument("--analyze-only", action="store_true", help="Only log timestamps/laps, do not call API.")
+    parser.add_argument("--start-confirm-hits", type=int, default=None, help="Override SC start confirm hits.")
+    parser.add_argument("--start-confirm-window", type=int, default=None, help="Override SC start confirm window.")
+    parser.add_argument("--ending-confirm-hits", type=int, default=None, help="Override SC ending confirm hits.")
+    parser.add_argument("--ending-confirm-window", type=int, default=None, help="Override SC ending confirm window.")
     return parser.parse_args()
 
 
@@ -57,12 +73,10 @@ def clip_time_s(cap: cv2.VideoCapture) -> float:
 
 
 def scale_confirmation(confirm_hits: int, confirm_window: int, detect_fps: float) -> tuple[int, int]:
-    # Config thresholds are tuned around 1 processed frame per second.
-    window_seconds = float(confirm_window)
-    hit_ratio = confirm_hits / max(confirm_window, 1)
-    scaled_window = max(1, int(round(window_seconds * max(detect_fps, 0.05))))
-    scaled_hits = max(1, int(round(hit_ratio * scaled_window)))
-    return min(scaled_hits, scaled_window), scaled_window
+    # Treat thresholds as frame counts (no fps scaling).
+    hits = max(1, int(confirm_hits))
+    window = max(1, int(confirm_window))
+    return min(hits, window), window
 
 
 def main() -> None:
@@ -88,13 +102,25 @@ def main() -> None:
     interval_s = 1.0 / max(args.fps, 0.5)
     last_tick = 0.0
     sample_step = None
-    source_is_file = not str(args.source).isdigit()
+    source_path = str(args.source)
+    source_is_file = Path(source_path).exists() and not source_path.isdigit()
     if args.sample_fps and args.sample_fps > 0 and source_is_file:
         sample_step = max(1, int(round(source_fps / args.sample_fps)))
     eval_fps = args.sample_fps if sample_step is not None else args.fps
+    playback_rate = max(0.1, float(args.playback_rate))
+    realtime_file = bool(args.realtime_file and source_is_file)
+    file_wall_start_s = time.time()
+    file_start_clip_s: float | None = None
 
-    start_hits, start_window = scale_confirmation(cfg.start_confirm_hits, cfg.start_confirm_window, eval_fps)
-    ending_hits, ending_window = scale_confirmation(cfg.ending_confirm_hits, cfg.ending_confirm_window, eval_fps)
+    start_hits_cfg = args.start_confirm_hits if args.start_confirm_hits is not None else cfg.start_confirm_hits
+    start_window_cfg = args.start_confirm_window if args.start_confirm_window is not None else cfg.start_confirm_window
+    ending_hits_cfg = args.ending_confirm_hits if args.ending_confirm_hits is not None else cfg.ending_confirm_hits
+    ending_window_cfg = (
+        args.ending_confirm_window if args.ending_confirm_window is not None else cfg.ending_confirm_window
+    )
+
+    start_hits, start_window = scale_confirmation(start_hits_cfg, start_window_cfg, eval_fps)
+    ending_hits, ending_window = scale_confirmation(ending_hits_cfg, ending_window_cfg, eval_fps)
     start_fsm = TriggerFSM(
         confirm_hits=start_hits,
         confirm_window=start_window,
@@ -108,6 +134,7 @@ def main() -> None:
     paused = False
     active_market: ActiveSafetyCarMarket | None = None
     sc_start_logged = False
+    sc_start_frame_index: int | None = None
     sc_ending_logged = False
     last_text = ""
     last_lap: int | None = None
@@ -125,6 +152,8 @@ def main() -> None:
     )
     if sample_step is not None:
         print(f"[agent] sampling=enabled sample_fps={args.sample_fps} step={sample_step}")
+    if realtime_file:
+        print(f"[agent] realtime_file=enabled playback_rate={playback_rate:.2f}x")
     print(f"[agent] fsm start={start_hits}/{start_window} ending={ending_hits}/{ending_window} eval_fps={eval_fps}")
     print("[agent] controls: s=force SC start, e=force SC ending, p=pause, q=quit")
 
@@ -134,6 +163,16 @@ def main() -> None:
             print("[agent] stream ended")
             break
         frame_index += 1
+
+        clip_t = frame_index / source_fps
+        if realtime_file:
+            if file_start_clip_s is None:
+                file_start_clip_s = clip_t
+            target_elapsed_s = (clip_t - file_start_clip_s) / playback_rate
+            wall_elapsed_s = time.time() - file_wall_start_s
+            sleep_s = target_elapsed_s - wall_elapsed_s
+            if sleep_s > 0:
+                time.sleep(min(sleep_s, 0.25))
 
         now_s = time.time()
         if sample_step is not None and frame_index % sample_step != 0:
@@ -154,7 +193,7 @@ def main() -> None:
 
         last_tick = now_s
         current_ms = now_ms()
-        t_s = frame_index / source_fps
+        t_s = clip_t
         if t_s >= next_progress_log_s:
             wall_elapsed_s = time.time() - start_wall_s
             speed_x = (t_s / wall_elapsed_s) if wall_elapsed_s > 0 else 0.0
@@ -188,7 +227,8 @@ def main() -> None:
             lap = detector.parse_lap(end_text)
 
         last_text = sc_text if sc_hit else end_text
-        last_lap = lap
+        if isinstance(lap, int):
+            last_lap = lap
 
         # If lap was missing at SC start, capture the next available lap mention.
         if sc_start_logged and sc_start_lap is None and isinstance(lap, int):
@@ -202,11 +242,14 @@ def main() -> None:
             sc_ending_lap = lap
             print(f"[lap_end_captured] t={t_s:.2f}s lap={lap}")
 
-        start_confirmed = start_fsm.update(sc_hit and sc_conf >= cfg.confidence_threshold, now_s)
-        ending_confirmed = ending_fsm.update(end_hit and end_conf >= cfg.confidence_threshold, now_s)
+        start_signal = sc_hit and not end_hit and sc_conf >= cfg.confidence_threshold
+        ending_signal = end_hit and end_conf >= cfg.confidence_threshold
+        start_confirmed = start_fsm.update(start_signal, now_s)
+        ending_confirmed = ending_fsm.update(ending_signal, now_s)
 
         if start_confirmed and not sc_start_logged:
             sc_start_logged = True
+            sc_start_frame_index = frame_index
             last_start_text = sc_text
             sc_start_lap = lap
             print(f"[sc_start] t={t_s:.2f}s lap={lap} text={sc_text[:120]!r}")
@@ -245,55 +288,54 @@ def main() -> None:
                     last_status = "starter_error"
                     print(f"[starter] error={exc}")
 
-        if ending_confirmed and sc_start_logged and not sc_ending_logged:
+        if (
+            ending_confirmed
+            and ending_signal
+            and sc_start_logged
+            and not sc_ending_logged
+            and sc_start_frame_index is not None
+            and frame_index > sc_start_frame_index
+        ):
             sc_ending_logged = True
             sc_ending_time_s = t_s
-            sc_ending_lap = lap
+            sc_ending_lap = lap if isinstance(lap, int) else last_lap
             print(f"[sc_ending] t={t_s:.2f}s lap={lap} text={end_text[:120]!r}")
 
-        # Finalize once SC ENDING was detected and lap context is available or timeout reached.
+        # Finalize immediately when SC ENDING appears.
         if sc_ending_logged and sc_ending_time_s is not None:
             lap_start = active_market.lap_start if active_market else sc_start_lap
-            lap_end = sc_ending_lap
-            wait_expired = (t_s - sc_ending_time_s) >= cfg.lap_capture_wait_s
-            if isinstance(lap_start, int) and isinstance(lap_end, int):
-                laps_delta = lap_end - lap_start
-            else:
-                laps_delta = None
-
-            if (isinstance(lap_start, int) and isinstance(lap_end, int)) or wait_expired:
-                print(
-                    f"[sc_result] t_end={t_s:.2f}s lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta} wait_expired={wait_expired}"
+            lap_end = sc_ending_lap if isinstance(sc_ending_lap, int) else last_lap
+            laps_delta = (lap_end - lap_start) if isinstance(lap_start, int) and isinstance(lap_end, int) else None
+            print(
+                f"[sc_result] t_end={t_s:.2f}s lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta}"
+            )
+            if not args.analyze_only and active_market is not None:
+                outcome = "YES" if isinstance(laps_delta, int) and laps_delta >= 4 else "NO"
+                resolution = ResolutionSignal(
+                    event_id=f"res_{uuid4().hex[:8]}",
+                    market_id=active_market.market_id,
+                    outcome=outcome,
+                    confidence=end_conf,
+                    resolved_at_ms=current_ms,
+                    reason="safety_car_ending_detected",
+                    context={
+                        "lap_start": lap_start,
+                        "lap_end": lap_end,
+                        "delta_laps": laps_delta,
+                        "over_3_5_laps": bool(isinstance(laps_delta, int) and laps_delta >= 4),
+                        "ocr_text": end_text,
+                    },
                 )
-                if not args.analyze_only and active_market is not None:
-                    outcome = "NO"
-                    if isinstance(laps_delta, int) and laps_delta >= 4:
-                        outcome = "YES"
-                    resolution = ResolutionSignal(
-                        event_id=f"res_{uuid4().hex[:8]}",
-                        market_id=active_market.market_id,
-                        outcome=outcome,
-                        confidence=end_conf,
-                        resolved_at_ms=current_ms,
-                        reason="safety_car_ending_detected",
-                        context={
-                            "lap_start": lap_start,
-                            "lap_end": lap_end,
-                            "delta_laps": laps_delta,
-                            "over_3_5_laps": bool(isinstance(laps_delta, int) and laps_delta >= 4),
-                            "ocr_text": end_text,
-                        },
+                try:
+                    settled = client.post_resolution(resolution)
+                    print(
+                        f"[closer] market={active_market.market_id} outcome={outcome} "
+                        f"status={(settled.get('market') or {}).get('status')} "
+                        f"lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta}"
                     )
-                    try:
-                        settled = client.post_resolution(resolution)
-                        print(
-                            f"[closer] market={active_market.market_id} outcome={outcome} "
-                            f"status={(settled.get('market') or {}).get('status')} "
-                            f"lap_start={lap_start} lap_end={lap_end} delta_laps={laps_delta}"
-                        )
-                    except Exception as exc:
-                        print(f"[closer] error={exc}")
-                break
+                except Exception as exc:
+                    print(f"[closer] error={exc}")
+            break
 
         if args.show:
             overlay = frame.copy()
