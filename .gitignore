@@ -10,6 +10,7 @@ apps/mobile/dist
 apps/api/pnpm-lock.yaml
 apps/mobile/pnpm-lock.yaml
 apps/vision-agent/.venv/
+apps/trading/.venv/
 clips/
 **/__pycache__/
 *.pyc

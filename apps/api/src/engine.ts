@@ -11,6 +11,8 @@ import type {
   PublicUserAccount,
   PublishEventName,
   ResolutionSignalInput,
+  ScannerStockCreateEventInput,
+  ScannerStockUpdateEventInput,
   Selection,
   Sport,
   StarterInput,
@@ -62,6 +64,14 @@ const VOLATILE_STOCKS = ["TSLA", "NVDA", "COIN", "MSTR", "PLTR", "SMCI"] as cons
 
 const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const clamp = (n: number, min: number, max: number): number => Math.max(min, Math.min(max, n));
+const toFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+};
 
 const normalizeSelection = (selection: Selection): "YES" | "NO" =>
   selection === "YES" || selection === "HIGHER" ? "YES" : "NO";
@@ -144,6 +154,19 @@ export interface PlaceBetResult {
   error?: string;
 }
 
+interface SettledImmediatelyOptions {
+  reason?: string;
+}
+
+interface SettleMarketOptions {
+  skipOracleCheck?: boolean;
+  skipDelay?: boolean;
+}
+
+interface ScannerStockCreateInputResolved extends ScannerStockCreateEventInput {
+  close_at_ms: number;
+}
+
 interface MarketEngineOptions {
   maxOpenDurationMs?: number;
   safetySweepIntervalMs?: number;
@@ -171,6 +194,7 @@ export class MarketEngine {
   private readonly triggerCooldowns = new Map<string, number>();
 
   private safetyHandle?: NodeJS.Timeout;
+  private readonly stockCloseTimers = new Map<string, NodeJS.Timeout>();
 
   private readonly streamStatus: StreamStatus = {
     active_connections: 0,
@@ -201,9 +225,11 @@ export class MarketEngine {
   }
 
   stop(): void {
-    if (!this.safetyHandle) return;
-    clearInterval(this.safetyHandle);
-    this.safetyHandle = undefined;
+    if (this.safetyHandle) {
+      clearInterval(this.safetyHandle);
+      this.safetyHandle = undefined;
+    }
+    this.clearAllStockCloseTimers();
   }
 
   getStreamStatus(): StreamStatus {
@@ -424,10 +450,145 @@ export class MarketEngine {
     return { market, deduped: false };
   }
 
+  ingestStockCreateSignal(signal: ScannerStockCreateInputResolved): { market: Market; deduped: boolean; reason?: string } {
+    const marketId = this.resolveStockMarketId(signal);
+    const existing = this.markets.get(marketId);
+    if (existing && existing.status !== "open") {
+      return { market: existing, deduped: true, reason: "market_already_finalized" };
+    }
+
+    const now = Date.now();
+    const sourceTimestamp = signal.timestamp_ms > 0 ? signal.timestamp_ms : now;
+    const symbol = signal.symbol.toUpperCase();
+    const closeAtMs = signal.close_at_ms;
+    const priceAtMs = this.resolveTimestampMs(signal.price_at, sourceTimestamp);
+
+    const nextContext: Record<string, unknown> = {
+      ...(existing?.context ?? {}),
+      ...(signal.context ?? {}),
+      source_event_id: signal.event_id,
+      source_signal_type: signal.signal_type,
+      scanner_session_id: signal.session_id,
+      scanner_confidence: signal.confidence,
+      scanner_cooldown_key: signal.cooldown_key,
+      market_key: signal.market_key,
+      symbol,
+      close_at_ms: closeAtMs,
+    };
+
+    if (typeof signal.window_minutes === "number" && Number.isFinite(signal.window_minutes)) {
+      nextContext.window_minutes = signal.window_minutes;
+    }
+    if (typeof signal.price === "number" && Number.isFinite(signal.price) && signal.price > 0) {
+      nextContext.underlying_last_price = signal.price;
+      if (toFiniteNumber(existing?.context.underlying_start_price) === undefined) {
+        nextContext.underlying_start_price = signal.price;
+      }
+    }
+    if (priceAtMs > 0) nextContext.underlying_price_at_ms = priceAtMs;
+    if (signal.settlement_outcome) {
+      nextContext.forced_settlement_outcome = signal.settlement_outcome;
+    }
+
+    if (existing) {
+      existing.question = signal.question ?? existing.question;
+      existing.context = nextContext;
+      existing.timestamps.updated_at_ms = now;
+      this.markets.set(existing.market_id, existing);
+      this.persistState();
+      this.emit("market.updated", existing);
+      this.scheduleStockMarketClose(
+        existing.market_id,
+        closeAtMs,
+        signal.settlement_outcome,
+        "stock_close_time_reached",
+      );
+      return { market: existing, deduped: true, reason: "market_updated" };
+    }
+
+    const market = this.buildMarketFromStarter({
+      sport: "Stocks",
+      event_type: "stock_up_down_window",
+      session_id: signal.session_id,
+      context: nextContext,
+    });
+    market.market_id = marketId;
+    market.open_at_ms = sourceTimestamp;
+    market.starter_event_id = signal.event_id;
+    market.question = signal.question ?? market.question;
+    market.timestamps.open_at_ms = sourceTimestamp;
+    market.timestamps.updated_at_ms = now;
+    market.context = nextContext;
+
+    this.markets.set(market.market_id, market);
+    this.persistState();
+    this.emit("market.opened", market);
+    this.scheduleStockMarketClose(market.market_id, closeAtMs, signal.settlement_outcome, "stock_close_time_reached");
+
+    return { market, deduped: false };
+  }
+
+  ingestStockMarketUpdate(signal: ScannerStockUpdateEventInput): Market | undefined {
+    const market = this.markets.get(signal.market_id);
+    if (!market) return undefined;
+
+    const now = Date.now();
+    const nextContext: Record<string, unknown> = {
+      ...market.context,
+      ...(signal.context ?? {}),
+    };
+    if (signal.symbol) nextContext.symbol = signal.symbol.toUpperCase();
+    if (typeof signal.price === "number" && Number.isFinite(signal.price) && signal.price > 0) {
+      nextContext.underlying_last_price = signal.price;
+      if (toFiniteNumber(nextContext.underlying_start_price) === undefined) {
+        nextContext.underlying_start_price = signal.price;
+      }
+    }
+    if (typeof signal.timestamp_ms === "number" && Number.isFinite(signal.timestamp_ms) && signal.timestamp_ms > 0) {
+      nextContext.underlying_price_at_ms = signal.timestamp_ms;
+    } else {
+      nextContext.underlying_price_at_ms = now;
+    }
+    if (typeof signal.close_at_ms === "number" && Number.isFinite(signal.close_at_ms) && signal.close_at_ms > 0) {
+      nextContext.close_at_ms = signal.close_at_ms;
+      if (market.status === "open") {
+        this.scheduleStockMarketClose(
+          market.market_id,
+          signal.close_at_ms,
+          this.extractForcedSettlementOutcome(nextContext),
+          "stock_close_time_reached",
+        );
+      }
+    }
+
+    market.context = nextContext;
+    market.timestamps.updated_at_ms = now;
+    this.markets.set(market.market_id, market);
+    this.persistState();
+    if (market.status === "open") {
+      this.emit("market.updated", market);
+    }
+    return market;
+  }
+
+  async closeAndSettleMarketImmediately(
+    marketId: string,
+    outcome?: Selection,
+    options: SettledImmediatelyOptions = {},
+  ): Promise<Market | undefined> {
+    const market = this.closeMarket(marketId, options.reason ?? "backend_signal");
+    if (!market) return undefined;
+    const resolvedOutcome = outcome ?? this.deriveSettlementOutcome(market);
+    return this.settleMarket(marketId, resolvedOutcome, { skipDelay: true, skipOracleCheck: true });
+  }
+
   closeMarket(marketId: string, reason = "backend_signal"): Market | undefined {
     const market = this.markets.get(marketId);
     if (!market) return undefined;
-    if (market.status !== "open") return market;
+    if (market.status !== "open") {
+      this.clearStockCloseTimer(market.market_id);
+      return market;
+    }
 
     const now = Date.now();
     market.status = "closed";
@@ -435,19 +596,22 @@ export class MarketEngine {
     market.timestamps.updated_at_ms = now;
     market.context = { ...market.context, close_reason: reason };
     this.markets.set(market.market_id, market);
+    this.clearStockCloseTimer(market.market_id);
     this.persistState();
     this.emit("market.closed", market);
     return market;
   }
 
-  async settleMarket(marketId: string, outcome: Selection, options: { skipOracleCheck?: boolean } = {}): Promise<Market | undefined> {
+  async settleMarket(marketId: string, outcome: Selection, options: SettleMarketOptions = {}): Promise<Market | undefined> {
     const market = this.markets.get(marketId);
     if (!market) return undefined;
 
     if (market.status === "open") this.closeMarket(marketId, "settlement_requested");
     if (market.status !== "closed" && market.status !== "suspended") return market;
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    if (!options.skipDelay) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
     const oracleConfirmed = options.skipOracleCheck ? true : Math.random() <= 0.95;
     if (!oracleConfirmed) {
       market.status = "suspended";
@@ -483,6 +647,7 @@ export class MarketEngine {
     market.timestamps.settled_at_ms = now;
     market.timestamps.updated_at_ms = now;
     this.markets.set(market.market_id, market);
+    this.clearStockCloseTimer(market.market_id);
     this.emit("market.settled", market);
     this.persistState();
 
@@ -508,6 +673,7 @@ export class MarketEngine {
   }
 
   reset(): void {
+    this.clearAllStockCloseTimers();
     this.markets.clear();
     this.bets.clear();
     this.betsByUser.clear();
@@ -742,6 +908,111 @@ export class MarketEngine {
         timeout_triggered: false,
       },
     };
+  }
+
+  private resolveStockMarketId(signal: ScannerStockCreateInputResolved): string {
+    const raw = signal.market_id?.trim() || `mkt_stocks_${signal.market_key}_${signal.event_id}`;
+    const normalized = raw.replace(/[^a-zA-Z0-9_-]/g, "_");
+    if (normalized.length > 0) return normalized;
+    return `mkt_stocks_${Date.now()}`;
+  }
+
+  private resolveTimestampMs(value: unknown, fallbackMs: number): number {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      return Math.floor(value);
+    }
+    if (typeof value === "string") {
+      const parsedNumeric = Number(value);
+      if (Number.isFinite(parsedNumeric) && parsedNumeric > 0) {
+        return Math.floor(parsedNumeric);
+      }
+      const parsedDate = Date.parse(value);
+      if (Number.isFinite(parsedDate) && parsedDate > 0) {
+        return parsedDate;
+      }
+    }
+    return fallbackMs;
+  }
+
+  private scheduleStockMarketClose(
+    marketId: string,
+    closeAtMs: number,
+    forcedOutcome?: Selection,
+    reason = "stock_close_time_reached",
+  ): void {
+    if (!Number.isFinite(closeAtMs) || closeAtMs <= 0) return;
+    this.clearStockCloseTimer(marketId);
+
+    const run = () => {
+      this.stockCloseTimers.delete(marketId);
+      void this.closeAndSettleMarketImmediately(marketId, forcedOutcome, { reason });
+    };
+
+    const delayMs = Math.floor(closeAtMs - Date.now());
+    if (delayMs <= 0) {
+      run();
+      return;
+    }
+
+    const timer = setTimeout(run, delayMs);
+    if (typeof timer.unref === "function") timer.unref();
+    this.stockCloseTimers.set(marketId, timer);
+  }
+
+  private clearStockCloseTimer(marketId: string): void {
+    const timer = this.stockCloseTimers.get(marketId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.stockCloseTimers.delete(marketId);
+  }
+
+  private clearAllStockCloseTimers(): void {
+    for (const timer of this.stockCloseTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.stockCloseTimers.clear();
+  }
+
+  private extractForcedSettlementOutcome(source: unknown): Selection | undefined {
+    if (!source || typeof source !== "object") return undefined;
+    const record = source as Record<string, unknown>;
+    const candidates = [
+      record.forced_settlement_outcome,
+      record.settlement_outcome,
+      record.expected_outcome,
+      record.outcome,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate !== "string") continue;
+      const normalized = candidate.toUpperCase();
+      if (normalized === "YES" || normalized === "NO" || normalized === "HIGHER" || normalized === "LOWER") {
+        return normalized;
+      }
+    }
+    return undefined;
+  }
+
+  private deriveSettlementOutcome(market: Market): Selection {
+    const forced = this.extractForcedSettlementOutcome(market.context);
+    if (forced) {
+      if (market.market_type === "binary_higher_lower" && (forced === "HIGHER" || forced === "LOWER")) return forced;
+      if (market.market_type === "binary_yes_no" && (forced === "YES" || forced === "NO")) return forced;
+    }
+
+    if (market.market_type === "binary_higher_lower") {
+      const start = toFiniteNumber(market.context.underlying_start_price);
+      const latest = toFiniteNumber(market.context.underlying_last_price);
+      if (start !== undefined && latest !== undefined) {
+        return latest >= start ? "HIGHER" : "LOWER";
+      }
+      const finalMove = toFiniteNumber(market.context.final_move_from_start_pct);
+      if (finalMove !== undefined) {
+        return finalMove >= 0 ? "HIGHER" : "LOWER";
+      }
+      return "HIGHER";
+    }
+
+    return "YES";
   }
 
   private suspendStaleMarkets(): void {

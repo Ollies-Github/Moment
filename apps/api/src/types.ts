@@ -81,6 +81,97 @@ export const resolutionSignalBodySchema = z.object({
   context: z.record(z.string(), z.any()).optional(),
 });
 
+export const scannerCreateEventBodySchema = z.object({
+  event_id: z.string().min(1),
+  signal_type: z.literal("create_bet"),
+  sport: z.literal("F1").default("F1"),
+  trigger_type: triggerTypeSchema,
+  session_id: z.string().min(1),
+  timestamp_ms: z.number().nonnegative(),
+  lap: z.number().int().positive().optional(),
+  driver: z.string().optional(),
+  rival_driver: z.string().optional(),
+  confidence: z.number().min(0).max(1),
+  cooldown_key: z.string().min(1),
+  market_duration_ms: z.number().int().min(30_000).max(900_000).default(60_000),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const scannerStockCreateEventBodySchema = z.object({
+  event_id: z.string().min(1),
+  signal_type: z.literal("create_bet"),
+  sport: z.literal("Stocks"),
+  session_id: z.string().min(1),
+  timestamp_ms: z.number().nonnegative(),
+  market_id: z.string().min(1).optional(),
+  market_key: z.string().min(1),
+  symbol: z.string().trim().min(1),
+  close_at_ms: z.number().int().nonnegative().optional(),
+  close_at: z.string().trim().min(1).optional(),
+  close_time: z.string().trim().min(1).optional(),
+  expires_at: z.string().trim().min(1).optional(),
+  confidence: z.number().min(0).max(1).default(1),
+  cooldown_key: z.string().min(1),
+  window_minutes: z.number().int().positive().optional(),
+  question: z.string().trim().min(5).optional(),
+  settlement_outcome: z.enum(["HIGHER", "LOWER"]).optional(),
+  price: z.number().positive().optional(),
+  price_at: z.union([z.number().int().nonnegative(), z.string().trim().min(1)]).optional(),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const scannerStockUpdateEventBodySchema = z.object({
+  event_id: z.string().min(1).optional(),
+  signal_type: z.literal("market_update"),
+  sport: z.literal("Stocks").default("Stocks"),
+  market_id: z.string().min(1),
+  timestamp_ms: z.number().nonnegative().optional(),
+  symbol: z.string().trim().min(1).optional(),
+  price: z.number().positive().optional(),
+  close_at_ms: z.number().int().nonnegative().optional(),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const scannerCloseEventBodySchema = z.object({
+  event_id: z.string().min(1),
+  signal_type: z.literal("close_bet"),
+  market_id: z.string().min(1),
+  sport: sportSchema.optional(),
+  settlement_outcome: z.enum(["HIGHER", "LOWER"]).optional(),
+  timestamp_ms: z.number().nonnegative().optional(),
+  reason: z.string().optional(),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const scannerEventBodySchema = z.union([
+  scannerCreateEventBodySchema,
+  scannerStockCreateEventBodySchema,
+  scannerStockUpdateEventBodySchema,
+  scannerCloseEventBodySchema,
+]);
+
+export const scannerLifecycleEventBodySchema = z.object({
+  event: z.enum(["event_created", "event_active", "event_closed"]),
+  event_state: z.string().optional(),
+  event_at: z.string().trim().min(1).optional(),
+  expires_at: z.string().trim().min(1).optional(),
+  settle_at: z.string().trim().min(1).optional(),
+  event_id: z.union([z.string(), z.number()]).optional(),
+  event_type: z.string().trim().min(1).optional(),
+  market_id: z.string().trim().min(1).optional(),
+  ticker: z.string().trim().min(1).optional(),
+  question: z.string().trim().min(1).optional(),
+  target_direction: z.enum(["UP", "DOWN"]).optional(),
+  target_hit: z.boolean().optional(),
+  final_move_from_start_pct: z.number().optional(),
+  price: z.number().positive().optional(),
+  final_price: z.number().positive().optional(),
+  price_at: z.string().trim().min(1).optional(),
+  close_reason: z.string().trim().min(1).optional(),
+  context: z.union([z.string(), z.record(z.string(), z.any())]).optional(),
+  event_payload: z.record(z.string(), z.any()).optional(),
+});
+
 export type Sport = z.infer<typeof sportSchema>;
 export type MarketType = z.infer<typeof marketTypeSchema>;
 export type MarketStatus = z.infer<typeof marketStatusSchema>;
@@ -191,6 +282,10 @@ export type StarterInput = {
 
 export type StarterSignalInput = z.infer<typeof starterSignalBodySchema>;
 export type ResolutionSignalInput = z.infer<typeof resolutionSignalBodySchema>;
+export type ScannerEventInput = z.infer<typeof scannerEventBodySchema>;
+export type ScannerStockCreateEventInput = z.infer<typeof scannerStockCreateEventBodySchema>;
+export type ScannerStockUpdateEventInput = z.infer<typeof scannerStockUpdateEventBodySchema>;
+export type ScannerLifecycleEventInput = z.infer<typeof scannerLifecycleEventBodySchema>;
 
 export type PublishEventName =
   | "market.opened"

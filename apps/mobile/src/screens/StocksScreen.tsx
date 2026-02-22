@@ -76,7 +76,7 @@ export function StocksScreen() {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <LinearGradient colors={gradients.heroStocks} style={styles.hero}>
         <View style={styles.heroTop}>
-          <Text style={styles.title}>Stocks</Text>
+          <Text style={styles.title}>Volatility</Text>
           <View style={styles.liveChip}>
             <Text style={styles.liveChipText}>FAST PICKS</Text>
           </View>

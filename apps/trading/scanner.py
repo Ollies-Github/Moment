@@ -99,13 +99,7 @@ HEADERS = {
 }
 
 WATCHLIST = [
-    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",
-    "META", "TSLA", "BRK.B", "AVGO", "JPM",
-    "LLY",  "UNH",  "V",     "MA",   "XOM",
-    "COST", "HD",   "WMT",   "PG",   "JNJ",
-    "BAC",  "ABBV", "CRM",   "CVX",  "MRK",
-    "AMD",  "NFLX", "ORCL",  "DIS",  "GE",
-    "SPY",  "QQQ",  "IWM",
+    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN"
 ]
 
 DEBOUNCE_SECONDS = 300
@@ -749,11 +743,12 @@ def main() -> None:
 
         max_ticks   = REPLAY_TICKS if REPLAY_TICKS > 0 else total_ticks + 1
         tick_count  = 0
+        ticks_label = "∞" if REPLAY_TICKS == 0 else str(REPLAY_TICKS)
 
         print(
             f"[scanner] REPLAY — {sim_time.strftime('%Y-%m-%dT%H:%M:%SZ')} "
             f"\u2192 {market_close.strftime('%H:%MZ')} | "
-            f"step: {BACKTEST_STEP}min | ticks: {'\u221e' if REPLAY_TICKS == 0 else REPLAY_TICKS} | "
+            f"step: {BACKTEST_STEP}min | ticks: {ticks_label} | "
             f"delay: {REPLAY_DELAY}s | mode: {SESSION_MODE} | "
             f"spike: {SPIKE_THRESHOLD}%/{SPIKE_WINDOW}min | gap: {GAP_THRESHOLD}% | "
             f"preopen: move>={PREOPEN_THRESHOLD}% | range>={PREOPEN_RANGE_THRESHOLD}% | "
