@@ -53,6 +53,16 @@ const parseSelection = (value: unknown): Selection | undefined => {
   return undefined;
 };
 
+const resolveLifecycleDurationSeconds = (payload: Record<string, unknown>): number | undefined => {
+  if (typeof payload.duration_seconds === "number" && Number.isFinite(payload.duration_seconds) && payload.duration_seconds > 0) {
+    return Math.max(15, Math.round(payload.duration_seconds));
+  }
+  if (typeof payload.window_minutes === "number" && Number.isFinite(payload.window_minutes) && payload.window_minutes > 0) {
+    return Math.max(15, Math.round(payload.window_minutes * 60));
+  }
+  return undefined;
+};
+
 const resolveStockCloseAtMs = (payload: {
   close_at_ms?: number;
   close_at?: string;
@@ -87,14 +97,14 @@ const toScannerStockCreateSignal = (
     (typeof payload?.market_id === "string" && payload.market_id.trim()) ||
     `mkt_stocks_${symbol}_${eventId}`;
   const marketId = sanitizeStockMarketId(marketIdRaw);
-  const closeAtMs =
+  const rawCloseAtMs =
     parseTimestampMs(lifecycleEvent.settle_at) ??
     parseTimestampMs(lifecycleEvent.expires_at) ??
     parseTimestampMs(payload?.close_at_ms) ??
     parseTimestampMs(payload?.close_at) ??
     parseTimestampMs(payload?.close_time) ??
     parseTimestampMs(payload?.expires_at);
-  if (!closeAtMs) return undefined;
+  if (!rawCloseAtMs) return undefined;
 
   const contextRaw = lifecycleEvent.context;
   const lifecycleContext =
@@ -102,13 +112,21 @@ const toScannerStockCreateSignal = (
       ? ({ source_context_text: contextRaw } as Record<string, unknown>)
       : (toRecord(contextRaw) ?? {});
   const payloadContext = toRecord(payload?.context) ?? {};
-  const mergedContext = {
+  const mergedContext: Record<string, unknown> = {
     ...payloadContext,
     ...lifecycleContext,
     scanner_event: lifecycleEvent.event,
     scanner_event_type: lifecycleEvent.event_type ?? payload?.event_type,
     scanner_event_state: lifecycleEvent.event_state,
   };
+
+  const durationSeconds = resolveLifecycleDurationSeconds(payload ?? {});
+  const closeAtMs =
+    rawCloseAtMs > nowMs ? rawCloseAtMs : nowMs + (durationSeconds !== undefined ? durationSeconds * 1000 : 60_000);
+  if (rawCloseAtMs <= nowMs) {
+    mergedContext.original_close_at_ms = rawCloseAtMs;
+    mergedContext.close_time_shifted_to_now = true;
+  }
 
   const timestampMs = parseTimestampMs(lifecycleEvent.event_at) ?? parseTimestampMs(payload?.event_at) ?? nowMs;
   const price =
@@ -546,13 +564,14 @@ export const registerRoutes = (
     }
 
     if (lifecyclePayload.event === "event_active") {
-      const closeAtMs =
+      const rawCloseAtMs =
         parseTimestampMs(lifecyclePayload.settle_at) ??
         parseTimestampMs(lifecyclePayload.expires_at) ??
         parseTimestampMs(payloadRecord.close_at_ms) ??
         parseTimestampMs(payloadRecord.close_at) ??
         parseTimestampMs(payloadRecord.close_time) ??
         parseTimestampMs(payloadRecord.expires_at);
+      const closeAtMs = rawCloseAtMs && rawCloseAtMs > nowMs ? rawCloseAtMs : undefined;
       const timestampMs = parseTimestampMs(lifecyclePayload.event_at) ?? parseTimestampMs(payloadRecord.event_at) ?? nowMs;
       const price =
         typeof lifecyclePayload.price === "number"

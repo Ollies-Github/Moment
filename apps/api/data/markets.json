@@ -1,30 +1,30 @@
 {
   "markets": [
     {
-      "market_id": "mkt_stocks_NVDA_1",
+      "market_id": "mkt_stocks_AMZN_1",
       "sport": "Stocks",
       "session_id": "stocks-session-2026-02-22",
       "market_type": "binary_higher_lower",
-      "question": "Will NVDA move DOWN another 1.77% from $87.65 by the open settlement window?",
+      "question": "Will AMZN move UP another 2.05% from $181.27 in the next 180 seconds?",
       "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
+        "source_context_text": "US Stocks Futures Trade Mixed Ahead Of Opening Bell: 'Preserve Capital In Conditions Of High Uncertainty,' Says Expert",
+        "scanner_event": "event_created",
+        "scanner_event_type": "intraday_volatility",
         "scanner_event_state": "active",
+        "original_close_at_ms": 1744219920000,
+        "close_time_shifted_to_now": true,
         "source_event_id": "1",
         "source_signal_type": "create_bet",
         "scanner_session_id": "stocks-session-2026-02-22",
         "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:NVDA:mkt_stocks_NVDA_1",
-        "market_key": "preopen_volatility",
-        "symbol": "NVDA",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 87.48,
-        "underlying_start_price": 87.65,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
+        "scanner_cooldown_key": "stocks:AMZN:mkt_stocks_AMZN_1",
+        "market_key": "scanner_AMZN",
+        "symbol": "AMZN",
+        "close_at_ms": 1771752770444,
+        "underlying_price_at_ms": 1744219740000,
+        "close_reason": "duration_elapsed"
       },
-      "open_at_ms": 1744032300000,
+      "open_at_ms": 1744219740000,
       "settlement_key": "stocks_stock_up_down_window",
       "starter_event_id": "1",
       "close_control": {
@@ -52,10 +52,10 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865948,
-        "closed_at_ms": 1771749834515,
-        "settled_at_ms": 1771749834516
+        "open_at_ms": 1744219740000,
+        "updated_at_ms": 1771752743824,
+        "closed_at_ms": 1771752743821,
+        "settled_at_ms": 1771752743824
       },
       "safety": {
         "max_open_duration_ms": 0,
@@ -65,30 +65,30 @@
       "settlement_outcome": "HIGHER"
     },
     {
-      "market_id": "mkt_stocks_TSLA_2",
+      "market_id": "mkt_stocks_GOOGL_2",
       "sport": "Stocks",
       "session_id": "stocks-session-2026-02-22",
       "market_type": "binary_higher_lower",
-      "question": "Will TSLA move DOWN another 1.75% from $222.64 by the open settlement window?",
+      "question": "Will GOOGL move UP another 1.67% from $152.67 in the next 180 seconds?",
       "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
+        "source_context_text": "Juniper Networks Enters Collaboration With Google Cloud To Accelerate New Enterprise Campus And Branch Deployments And Optimize User Experiences",
+        "scanner_event": "event_created",
+        "scanner_event_type": "intraday_volatility",
         "scanner_event_state": "active",
+        "original_close_at_ms": 1744219920000,
+        "close_time_shifted_to_now": true,
         "source_event_id": "2",
         "source_signal_type": "create_bet",
         "scanner_session_id": "stocks-session-2026-02-22",
         "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:TSLA:mkt_stocks_TSLA_2",
-        "market_key": "preopen_volatility",
-        "symbol": "TSLA",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 223.79,
-        "underlying_start_price": 222.64,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
+        "scanner_cooldown_key": "stocks:GOOGL:mkt_stocks_GOOGL_2",
+        "market_key": "scanner_GOOGL",
+        "symbol": "GOOGL",
+        "close_at_ms": 1771752771171,
+        "underlying_price_at_ms": 1744219740000,
+        "close_reason": "duration_elapsed"
       },
-      "open_at_ms": 1744032300000,
+      "open_at_ms": 1744219740000,
       "settlement_key": "stocks_stock_up_down_window",
       "starter_event_id": "2",
       "close_control": {
@@ -116,10 +116,10 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865949,
-        "closed_at_ms": 1771749834818,
-        "settled_at_ms": 1771749834820
+        "open_at_ms": 1744219740000,
+        "updated_at_ms": 1771752743835,
+        "closed_at_ms": 1771752743834,
+        "settled_at_ms": 1771752743835
       },
       "safety": {
         "max_open_duration_ms": 0,
@@ -129,30 +129,30 @@
       "settlement_outcome": "HIGHER"
     },
     {
-      "market_id": "mkt_stocks_ORCL_3",
+      "market_id": "mkt_stocks_AAPL_3",
       "sport": "Stocks",
       "session_id": "stocks-session-2026-02-22",
       "market_type": "binary_higher_lower",
-      "question": "Will ORCL move DOWN another 1.57% from $120.21 by the open settlement window?",
+      "question": "Will AAPL move UP another 1.62% from $188.53 in the next 180 seconds?",
       "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
+        "source_context_text": "What's Going On With Apple Stock Wednesday?",
+        "scanner_event": "event_created",
+        "scanner_event_type": "intraday_volatility",
         "scanner_event_state": "active",
+        "original_close_at_ms": 1744219920000,
+        "close_time_shifted_to_now": true,
         "source_event_id": "3",
         "source_signal_type": "create_bet",
         "scanner_session_id": "stocks-session-2026-02-22",
         "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:ORCL:mkt_stocks_ORCL_3",
-        "market_key": "preopen_volatility",
-        "symbol": "ORCL",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 121.01,
-        "underlying_start_price": 120.21,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
+        "scanner_cooldown_key": "stocks:AAPL:mkt_stocks_AAPL_3",
+        "market_key": "scanner_AAPL",
+        "symbol": "AAPL",
+        "close_at_ms": 1771752771980,
+        "underlying_price_at_ms": 1744219740000,
+        "close_reason": "duration_elapsed"
       },
-      "open_at_ms": 1744032300000,
+      "open_at_ms": 1744219740000,
       "settlement_key": "stocks_stock_up_down_window",
       "starter_event_id": "3",
       "close_control": {
@@ -180,10 +180,10 @@
         "no": 0.5
       },
       "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865951,
-        "closed_at_ms": 1771749835177,
-        "settled_at_ms": 1771749835178
+        "open_at_ms": 1744219740000,
+        "updated_at_ms": 1771752743839,
+        "closed_at_ms": 1771752743839,
+        "settled_at_ms": 1771752743839
       },
       "safety": {
         "max_open_duration_ms": 0,
@@ -193,30 +193,30 @@
       "settlement_outcome": "HIGHER"
     },
     {
-      "market_id": "mkt_stocks_LLY_4",
+      "market_id": "mkt_stocks_MSFT_4",
       "sport": "Stocks",
       "session_id": "stocks-session-2026-02-22",
       "market_type": "binary_higher_lower",
-      "question": "Will LLY move DOWN another 1.48% from $694.50 by the open settlement window?",
+      "question": "Will MSFT move UP another 1.05% from $379.06 in the next 180 seconds?",
       "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
+        "source_context_text": "Trump Tariff Strategy Creates 'Self-Inflicted Market Debacle': Analyst",
+        "scanner_event": "event_created",
+        "scanner_event_type": "intraday_volatility",
         "scanner_event_state": "active",
+        "original_close_at_ms": 1744219920000,
+        "close_time_shifted_to_now": true,
         "source_event_id": "4",
         "source_signal_type": "create_bet",
         "scanner_session_id": "stocks-session-2026-02-22",
         "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:LLY:mkt_stocks_LLY_4",
-        "market_key": "preopen_volatility",
-        "symbol": "LLY",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 693,
-        "underlying_start_price": 694.5,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
+        "scanner_cooldown_key": "stocks:MSFT:mkt_stocks_MSFT_4",
+        "market_key": "scanner_MSFT",
+        "symbol": "MSFT",
+        "close_at_ms": 1771752772711,
+        "underlying_price_at_ms": 1744219740000,
+        "close_reason": "duration_elapsed"
       },
-      "open_at_ms": 1744032300000,
+      "open_at_ms": 1744219740000,
       "settlement_key": "stocks_stock_up_down_window",
       "starter_event_id": "4",
       "close_control": {
@@ -231,535 +231,23 @@
       },
       "status": "settled",
       "amm_state": {
-        "yes_pool": 60,
+        "yes_pool": 84.7,
         "no_pool": 60,
         "fee_bps": 120,
         "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
+        "total_fees_collected": 0.3,
+        "total_volume": 25,
+        "trade_count": 1
       },
       "prices": {
-        "yes": 0.5,
-        "no": 0.5
+        "yes": 0.5853489979267451,
+        "no": 0.41465100207325506
       },
       "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865952,
-        "closed_at_ms": 1771749835596,
-        "settled_at_ms": 1771749835597
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_BRK_B_5",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will BRK.B move DOWN another 1.35% from $466.94 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "5",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:BRK.B:mkt_stocks_BRK_B_5",
-        "market_key": "preopen_volatility",
-        "symbol": "BRK.B",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 467.5,
-        "underlying_start_price": 466.94,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032300000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "5",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865953,
-        "closed_at_ms": 1771749836127,
-        "settled_at_ms": 1771749836127
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_AAPL_6",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will AAPL move DOWN another 1.25% from $178.99 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "6",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:AAPL:mkt_stocks_AAPL_6",
-        "market_key": "preopen_volatility",
-        "symbol": "AAPL",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 177.21,
-        "underlying_start_price": 178.99,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032300000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "6",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865955,
-        "closed_at_ms": 1771749836886,
-        "settled_at_ms": 1771749836889
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_XOM_7",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will XOM move DOWN another 1.16% from $99.50 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "7",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:XOM:mkt_stocks_XOM_7",
-        "market_key": "preopen_volatility",
-        "symbol": "XOM",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 100.39,
-        "underlying_start_price": 99.5,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032300000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "7",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865956,
-        "closed_at_ms": 1771749837228,
-        "settled_at_ms": 1771749837240
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_V_8",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will V move DOWN another 1.10% from $299.41 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "8",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:V:mkt_stocks_V_8",
-        "market_key": "preopen_volatility",
-        "symbol": "V",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 302.41,
-        "underlying_start_price": 299.41,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032300000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "8",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032300000,
-        "updated_at_ms": 1771749865957,
-        "closed_at_ms": 1771749837723,
-        "settled_at_ms": 1771749837724
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_AMZN_9",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will AMZN move DOWN another 1.06% from $163.76 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "9",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:AMZN:mkt_stocks_AMZN_9",
-        "market_key": "preopen_volatility",
-        "symbol": "AMZN",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 161.5901,
-        "underlying_start_price": 163.76,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032360000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "9",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032360000,
-        "updated_at_ms": 1771749865958,
-        "closed_at_ms": 1771749844608,
-        "settled_at_ms": 1771749844610
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_ABBV_10",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will ABBV move DOWN another 1.06% from $179.06 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "10",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:ABBV:mkt_stocks_ABBV_10",
-        "market_key": "preopen_volatility",
-        "symbol": "ABBV",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 180.54,
-        "underlying_start_price": 179.06,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032360000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "10",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032360000,
-        "updated_at_ms": 1771749865959,
-        "closed_at_ms": 1771749845152,
-        "settled_at_ms": 1771749845153
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_AMD_11",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will AMD move DOWN another 1.15% from $81.82 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "11",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:AMD:mkt_stocks_AMD_11",
-        "market_key": "preopen_volatility",
-        "symbol": "AMD",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 80.69,
-        "underlying_start_price": 81.82,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032420000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "11",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032420000,
-        "updated_at_ms": 1771749865960,
-        "closed_at_ms": 1771749851515,
-        "settled_at_ms": 1771749851516
-      },
-      "safety": {
-        "max_open_duration_ms": 0,
-        "expires_at_ms": 0,
-        "timeout_triggered": false
-      },
-      "settlement_outcome": "HIGHER"
-    },
-    {
-      "market_id": "mkt_stocks_META_12",
-      "sport": "Stocks",
-      "session_id": "stocks-session-2026-02-22",
-      "market_type": "binary_higher_lower",
-      "question": "Will META move DOWN another 1.13% from $482.00 by the open settlement window?",
-      "context": {
-        "scanner_event": "event_active",
-        "scanner_event_type": "preopen_volatility",
-        "scanner_event_state": "active",
-        "source_event_id": "12",
-        "source_signal_type": "create_bet",
-        "scanner_session_id": "stocks-session-2026-02-22",
-        "scanner_confidence": 1,
-        "scanner_cooldown_key": "stocks:META:mkt_stocks_META_12",
-        "market_key": "preopen_volatility",
-        "symbol": "META",
-        "close_at_ms": 1744032660000,
-        "underlying_last_price": 486,
-        "underlying_start_price": 482,
-        "underlying_price_at_ms": 1744032540000,
-        "close_reason": "stock_close_time_reached",
-        "source_context_text": "What If Trump Is Right? Why Tariffs Could Really Save The U.S. Economy"
-      },
-      "open_at_ms": 1744032420000,
-      "settlement_key": "stocks_stock_up_down_window",
-      "starter_event_id": "12",
-      "close_control": {
-        "mode": "backend_signal",
-        "closer_key": "mock_closer_v1"
-      },
-      "market_making": {
-        "model": "binary_amm",
-        "initial_probability_yes": 0.5,
-        "virtual_liquidity": 120,
-        "fee_bps": 120
-      },
-      "status": "settled",
-      "amm_state": {
-        "yes_pool": 60,
-        "no_pool": 60,
-        "fee_bps": 120,
-        "virtual_liquidity": 120,
-        "total_fees_collected": 0,
-        "total_volume": 0,
-        "trade_count": 0
-      },
-      "prices": {
-        "yes": 0.5,
-        "no": 0.5
-      },
-      "timestamps": {
-        "open_at_ms": 1744032420000,
-        "updated_at_ms": 1771749865961,
-        "closed_at_ms": 1771749851906,
-        "settled_at_ms": 1771749851906
+        "open_at_ms": 1744219740000,
+        "updated_at_ms": 1771752743842,
+        "closed_at_ms": 1771752743841,
+        "settled_at_ms": 1771752743842
       },
       "safety": {
         "max_open_duration_ms": 0,

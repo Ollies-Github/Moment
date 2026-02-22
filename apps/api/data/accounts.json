@@ -20,6 +20,13 @@
       "pin": "6767",
       "created_at_ms": 1771721631042,
       "updated_at_ms": 1771721631042
+    },
+    {
+      "user_id": "usr_fb819154",
+      "username": "oje",
+      "pin": "5353",
+      "created_at_ms": 1771751286550,
+      "updated_at_ms": 1771751286550
     }
   ],
   "wallets": [
@@ -30,14 +37,35 @@
     },
     {
       "user_id": "usr_28de5c5c",
-      "balance": 13.568182185610283,
-      "updated_at_ms": 1771747679649
+      "balance": 49.68018218561028,
+      "updated_at_ms": 1771752743842
     },
     {
       "user_id": "usr_ebe21a38",
       "balance": 93.34581797366917,
       "updated_at_ms": 1771745920311
+    },
+    {
+      "user_id": "usr_fb819154",
+      "balance": 100,
+      "updated_at_ms": 1771751286550
     }
   ],
-  "picks": []
+  "picks": [
+    {
+      "bet_id": "f2108764-b21d-4d40-8c47-451bc370ed3e",
+      "user_id": "usr_28de5c5c",
+      "market_id": "mkt_stocks_MSFT_4",
+      "selection": "HIGHER",
+      "stake": 25,
+      "fee": 0.3,
+      "effective_stake": 24.7,
+      "accepted_price": 0.5,
+      "potential_payout": 49.4,
+      "status": "settled_won",
+      "created_at_ms": 1771752717545,
+      "payout": 49.4,
+      "settled_at_ms": 1771752743842
+    }
+  ]
 }

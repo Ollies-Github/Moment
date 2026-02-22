@@ -99,13 +99,7 @@ HEADERS = {
 }
 
 WATCHLIST = [
-    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN",
-    "META", "TSLA", "BRK.B", "AVGO", "JPM",
-    "LLY",  "UNH",  "V",     "MA",   "XOM",
-    "COST", "HD",   "WMT",   "PG",   "JNJ",
-    "BAC",  "ABBV", "CRM",   "CVX",  "MRK",
-    "AMD",  "NFLX", "ORCL",  "DIS",  "GE",
-    "SPY",  "QQQ",  "IWM",
+    "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN"
 ]
 
 DEBOUNCE_SECONDS = 300

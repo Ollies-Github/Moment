@@ -593,29 +593,12 @@ def _close_preopen_events(
     if not active_events:
         return
     tickers = list(active_events.keys())
-    try:
-        metrics = _fetch_preopen_metrics(scanner, tickers, close_time)
-    except Exception as exc:
-        print(f"[scanner_events] Close update failed at {_iso(close_time)}: {exc}", file=sys.stderr)
-        metrics = {}
 
     for ticker in tickers:
         state = active_events[ticker]
         payload = state.payload
-        metric = metrics.get(ticker, {})
-        final_price = _to_float(metric.get("price"))
-        final_close_price = _to_float(metric.get("close_price"))
-        target_price = _to_float(payload.get("target_price"))
-        target_move_pct = _to_float(payload.get("target_move_pct"))
-        target_direction = payload.get("target_direction")
-        final_volatility = _to_float(metric.get("volatility"))
-
-        final_target_hit = _preopen_target_hit(
-            latest_price=final_price,
-            target_price=target_price,
-            target_direction=str(target_direction) if target_direction is not None else None,
-            fallback_volatility=final_volatility,
-        )
+        target_direction = str(payload.get("target_direction", "")).strip().upper()
+        settlement_outcome = "LOWER" if target_direction == "DOWN" else "HIGHER"
 
         _emit(
             {
@@ -630,16 +613,7 @@ def _close_preopen_events(
                 "created_at": state.created_at,
                 "expires_at": state.expires_at,
                 "settle_at": state.settle_at,
-                "final_price": final_price,
-                "final_price_at": metric.get("price_at"),
-                "final_volatility": final_volatility,
-                "close_price": final_close_price,
-                "dollar_volume": metric.get("dollar_volume"),
-                "target_direction": target_direction,
-                "target_move_pct": target_move_pct,
-                "target_price": target_price,
-                "target_hit": final_target_hit,
-                "official_open_price": metric.get("official_open_price"),
+                "settlement_outcome": settlement_outcome,
             }
         )
         del active_events[ticker]
@@ -664,16 +638,14 @@ def _run_preopen_replay(scanner: Any, build_event_payload: Any, cfg: Config, id_
         if sim_time < open_utc:
             if _in_preopen_window(sim_time, cfg.window_minutes):
                 _create_preopen_events(scanner, build_event_payload, active_events, sim_time, cfg, id_counter)
-                _emit_preopen_active_events(scanner, active_events, sim_time)
             else:
                 print(
                     f"[scanner_events] {_iso(sim_time)} outside preopen {cfg.window_minutes}-minute window.",
                     file=sys.stderr,
                 )
         elif sim_time < settle_utc:
-            _lock_preopen_events(active_events, open_utc)
+            pass
         else:
-            _lock_preopen_events(active_events, open_utc)
             _close_preopen_events(scanner, active_events, settle_utc)
             break
 
@@ -683,7 +655,6 @@ def _run_preopen_replay(scanner: Any, build_event_payload: Any, cfg: Config, id_
             time.sleep(cfg.replay_delay)
 
     if active_events:
-        _lock_preopen_events(active_events, open_utc)
         _close_preopen_events(scanner, active_events, settle_utc)
 
     print("[scanner_events] Replay complete.", file=sys.stderr)
@@ -703,10 +674,9 @@ def _run_preopen_live(scanner: Any, build_event_payload: Any, cfg: Config, id_co
         window_start = open_utc - timedelta(minutes=cfg.window_minutes)
 
         if now >= open_utc:
-            _lock_preopen_events(active_events, open_utc)
             if now >= settle_utc:
                 _close_preopen_events(scanner, active_events, settle_utc)
-                print("[scanner_events] Settled all locked preopen events.", file=sys.stderr)
+                print("[scanner_events] Closed all preopen events.", file=sys.stderr)
                 return
 
             sleep_for = min(cfg.poll_seconds, max(1, int((settle_utc - now).total_seconds())))
@@ -724,7 +694,6 @@ def _run_preopen_live(scanner: Any, build_event_payload: Any, cfg: Config, id_co
             continue
 
         _create_preopen_events(scanner, build_event_payload, active_events, now, cfg, id_counter)
-        _emit_preopen_active_events(scanner, active_events, now)
         time.sleep(min(cfg.poll_seconds, max(1, int((open_utc - now).total_seconds()))))
 
 
@@ -1003,14 +972,7 @@ def _close_intraday_event(
         return
 
     payload = state.payload
-    start_price = float(payload.get("starting_price", payload.get("price", 0)))
-    if metric is None:
-        metric = _intraday_metric(scanner, ticker, close_time, start_price)
-    if metric:
-        _update_intraday_progress(state, metric)
-    final_price = metric.get("price") if metric else None
-    final_price_at = metric.get("price_at") if metric else None
-    final_move = metric.get("move_from_start_pct") if metric else None
+    settlement_outcome = "HIGHER" if state.direction >= 0 else "LOWER"
 
     _emit(
         {
@@ -1024,14 +986,7 @@ def _close_intraday_event(
             "question": payload.get("question"),
             "created_at": state.created_at,
             "expires_at": state.expires_at,
-            "starting_price": start_price,
-            "starting_price_at": payload.get("starting_price_at", payload.get("price_at")),
-            "final_price": final_price,
-            "final_price_at": final_price_at,
-            "final_move_from_start_pct": final_move,
-            "target_move_pct": payload.get("target_move_pct"),
-            "target_price": state.target_price,
-            "target_hit": state.target_hit,
+            "settlement_outcome": settlement_outcome,
         }
     )
     del active_events[ticker]
@@ -1045,6 +1000,7 @@ def _run_intraday_replay(scanner: Any, build_event_payload: Any, cfg: Config, id
     tick_count = 0
     active_events: dict[str, ActiveEvent] = {}
     ticker_cooldown_until: dict[str, datetime] = {}
+    first_round_started = False
 
     print(
         f"[scanner_events] REPLAY intraday start={_iso(cfg.backtest_time)} close={_iso(market_close)} "
@@ -1066,6 +1022,12 @@ def _run_intraday_replay(scanner: Any, build_event_payload: Any, cfg: Config, id
                     cfg,
                     ticker_cooldown_until,
                 )
+        if first_round_started and not active_events:
+            print(
+                "[scanner_events] First replay round completed (all stock events closed). Stopping replay.",
+                file=sys.stderr,
+            )
+            break
 
         _maybe_create_intraday_events(
             scanner,
@@ -1076,7 +1038,12 @@ def _run_intraday_replay(scanner: Any, build_event_payload: Any, cfg: Config, id
             cfg,
             id_counter,
         )
-        _emit_intraday_event_active(scanner, active_events, ticker_cooldown_until, sim_time, cfg)
+        if not first_round_started and active_events:
+            first_round_started = True
+            print(
+                f"[scanner_events] First replay round started with {len(active_events)} active stock events.",
+                file=sys.stderr,
+            )
 
         tick_count += 1
         sim_time += timedelta(seconds=cfg.intraday_step_seconds)
@@ -1129,7 +1096,6 @@ def _run_intraday_live(scanner: Any, build_event_payload: Any, cfg: Config, id_c
             cfg,
             id_counter,
         )
-        _emit_intraday_event_active(scanner, active_events, ticker_cooldown_until, now, cfg)
 
         time.sleep(cfg.poll_seconds)
 
