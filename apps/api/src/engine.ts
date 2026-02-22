@@ -695,6 +695,10 @@ export class MarketEngine {
       context.window_minutes = windowMinutes;
       question = `Will price be HIGHER in the next ${windowMinutes} minutes?`;
     }
+    const customQuestion = typeof context.custom_question === "string" ? context.custom_question.trim() : "";
+    if (customQuestion) {
+      question = customQuestion;
+    }
 
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
     const requestedDurationMs =

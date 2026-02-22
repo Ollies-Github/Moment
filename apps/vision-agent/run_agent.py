@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import importlib
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable
 from uuid import uuid4
 
 import cv2
@@ -79,6 +82,78 @@ def scale_confirmation(confirm_hits: int, confirm_window: int, detect_fps: float
     return min(hits, window), window
 
 
+def load_event_pipeline() -> Callable[[dict[str, Any]], dict[str, Any]] | None:
+    apps_root = Path(__file__).resolve().parents[1]
+    if str(apps_root) not in sys.path:
+        sys.path.insert(0, str(apps_root))
+
+    try:
+        pipeline = importlib.import_module("event_create.pipeline")
+        bootstrap_env = getattr(pipeline, "_bootstrap_env", None)
+        if callable(bootstrap_env):
+            bootstrap_env()
+        build_event_payload = getattr(pipeline, "build_event_payload", None)
+        if callable(build_event_payload):
+            return build_event_payload
+        print("[llm] pipeline_unavailable reason=missing_build_event_payload")
+    except Exception as exc:
+        print(f"[llm] pipeline_unavailable error={exc}")
+    return None
+
+
+def build_custom_question(
+    build_event_payload: Callable[[dict[str, Any]], dict[str, Any]] | None,
+    *,
+    event_id: str,
+    session_id: str,
+    trigger_type: str,
+    lap_start: int | None,
+    confidence: float,
+    market_line_laps: float,
+    market_duration_ms: int,
+    clip_time_s: float,
+) -> tuple[str | None, str | None, str | None]:
+    if build_event_payload is None:
+        return None, None, None
+
+    payload = {
+        "event_id": event_id,
+        "event_type": "f1_safety_car_laps",
+        "session_id": session_id,
+        "trigger_type": trigger_type,
+        "lap_start": lap_start,
+        "market_line_laps": market_line_laps,
+        "duration_seconds": max(30, int(round(market_duration_ms / 1000))),
+        "source_confidence": confidence,
+        "source_event_id": event_id,
+        "context": f"Vision trigger at t={clip_time_s:.2f}s from safety-car broadcast banner OCR.",
+    }
+
+    try:
+        llm_payload = build_event_payload(payload)
+    except Exception as exc:
+        print(f"[llm] pipeline_error error={exc}")
+        return None, None, None
+
+    if not isinstance(llm_payload, dict):
+        return None, None, None
+
+    question = llm_payload.get("question")
+    context = llm_payload.get("context")
+    ai_summary = llm_payload.get("ai_summary")
+
+    question_text = question.strip() if isinstance(question, str) and question.strip() else None
+    context_text = context.strip() if isinstance(context, str) and context.strip() else None
+    summary_text = ai_summary.strip() if isinstance(ai_summary, str) and ai_summary.strip() else None
+    if question_text:
+        if isinstance(lap_start, int) and lap_start > 0:
+            prefix = f"Safety Car spotted on Lap {lap_start}."
+        else:
+            prefix = "Safety Car spotted during the race."
+        return f"{prefix} {question_text}", context_text, summary_text
+    return None, context_text, summary_text
+
+
 def main() -> None:
     args = parse_args()
     cap = open_capture(str(args.source))
@@ -97,6 +172,7 @@ def main() -> None:
         roi_bottom_ratio=cfg.roi_bottom_ratio,
         roi_right_ratio=cfg.roi_right_ratio,
     )
+    build_event_payload = load_event_pipeline()
     client = MarketClient(args.api_base_url)
 
     interval_s = 1.0 / max(args.fps, 0.5)
@@ -155,6 +231,7 @@ def main() -> None:
     if realtime_file:
         print(f"[agent] realtime_file=enabled playback_rate={playback_rate:.2f}x")
     print(f"[agent] fsm start={start_hits}/{start_window} ending={ending_hits}/{ending_window} eval_fps={eval_fps}")
+    print(f"[agent] llm_pipeline={'enabled' if build_event_payload else 'disabled'}")
     print("[agent] controls: s=force SC start, e=force SC ending, p=pause, q=quit")
 
     while True:
@@ -256,6 +333,31 @@ def main() -> None:
 
             if not args.analyze_only:
                 event_id = f"evt_{uuid4().hex[:8]}"
+                custom_question, llm_context, ai_summary = build_custom_question(
+                    build_event_payload,
+                    event_id=event_id,
+                    session_id=args.session_id,
+                    trigger_type="SAFETY_CAR_START",
+                    lap_start=lap if isinstance(lap, int) else None,
+                    confidence=sc_conf,
+                    market_line_laps=3.5,
+                    market_duration_ms=cfg.market_duration_ms,
+                    clip_time_s=t_s,
+                )
+                starter_context = {
+                    "ocr_text": sc_text,
+                    "lap_start": lap,
+                    "market_line_laps": 3.5,
+                    "detector": "safety_car_banner_ocr",
+                }
+                if custom_question:
+                    starter_context["custom_question"] = custom_question
+                if llm_context:
+                    starter_context["llm_context"] = llm_context
+                if ai_summary:
+                    starter_context["ai_summary"] = ai_summary
+                if custom_question:
+                    print(f"[llm] custom_question={custom_question!r}")
                 starter = StarterSignal(
                     event_id=event_id,
                     trigger_type="SAFETY_CAR_START",
@@ -265,12 +367,7 @@ def main() -> None:
                     confidence=sc_conf,
                     cooldown_key=f"{args.session_id}:SAFETY_CAR_START",
                     market_duration_ms=cfg.market_duration_ms,
-                    context={
-                        "ocr_text": sc_text,
-                        "lap_start": lap,
-                        "market_line_laps": 3.5,
-                        "detector": "safety_car_banner_ocr",
-                    },
+                    context=starter_context,
                 )
                 try:
                     response = client.post_starter(starter)
