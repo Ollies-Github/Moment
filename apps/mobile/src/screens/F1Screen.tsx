@@ -12,7 +12,7 @@ import type { Market, Selection } from "../types/contracts";
 
 export function F1Screen() {
   const { userId, markets, bets, wallet, setMarkets, setBets, setWallet } = useAppStore();
-  const [modalMarket, setModalMarket] = useState<Market>();
+  const [modalMarketId, setModalMarketId] = useState<string>();
   const [modalSelection, setModalSelection] = useState<Selection>();
   const [modalVisible, setModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -21,6 +21,10 @@ export function F1Screen() {
   const f1Markets = useMemo(
     () => markets.filter((market) => market.sport === "F1"),
     [markets],
+  );
+  const modalMarket = useMemo(
+    () => (modalMarketId ? markets.find((market) => market.market_id === modalMarketId) : undefined),
+    [markets, modalMarketId],
   );
 
   const f1MarketIds = useMemo(() => new Set(f1Markets.map((m) => m.market_id)), [f1Markets]);
@@ -44,7 +48,7 @@ export function F1Screen() {
   }, [setBets, setMarkets, setWallet, userId]);
 
   const openStake = useCallback((market: Market, selection: Selection) => {
-    setModalMarket(market);
+    setModalMarketId(market.market_id);
     setModalSelection(selection);
     setActivePick({ marketId: market.market_id, selection });
     setModalVisible(true);
@@ -52,6 +56,7 @@ export function F1Screen() {
 
   const closeStake = useCallback(() => {
     setModalVisible(false);
+    setModalMarketId(undefined);
     setActivePick(undefined);
   }, []);
 

@@ -21,7 +21,15 @@ import type {
   Wallet,
 } from "./types";
 
-const DEFAULT_VIRTUAL_LIQUIDITY = 1000;
+const readPositiveNumber = (raw: string | undefined, fallback: number): number => {
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+};
+
+// Keep this low enough that small stakes (e.g. €1/€5/€10) visibly move prices.
+const DEFAULT_VIRTUAL_LIQUIDITY = readPositiveNumber(process.env.AMM_VIRTUAL_LIQUIDITY, 120);
 const DEFAULT_FEE_BPS = 120;
 const DEFAULT_INITIAL_PROBABILITY = 0.5;
 const DEFAULT_STARTING_BALANCE = 100;
@@ -57,6 +65,8 @@ const clamp = (n: number, min: number, max: number): number => Math.max(min, Mat
 
 const normalizeSelection = (selection: Selection): "YES" | "NO" =>
   selection === "YES" || selection === "HIGHER" ? "YES" : "NO";
+
+const isF1Market = (market: Pick<Market, "sport">): boolean => market.sport === "F1";
 
 const validSelection = (marketType: MarketType, selection: Selection): boolean => {
   if (marketType === "binary_yes_no") return selection === "YES" || selection === "NO";
@@ -455,6 +465,7 @@ export class MarketEngine {
       bet.payout = won ? bet.potential_payout : 0;
       bet.settled_at_ms = now;
       this.bets.set(bet.bet_id, bet);
+      this.emit("bet.updated", bet);
 
       const wallet = this.ensureWallet(bet.user_id);
       if (won) wallet.balance += bet.payout;
@@ -586,6 +597,7 @@ export class MarketEngine {
   private loadState(): void {
     mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
     let legacyMarkets: Market[] = [];
+    let marketsMigrated = false;
 
     if (existsSync(ACCOUNTS_FILE)) {
       try {
@@ -611,13 +623,66 @@ export class MarketEngine {
       try {
         const raw = readFileSync(MARKETS_FILE, "utf8");
         const parsed = JSON.parse(raw) as PersistedMarketsState;
-        for (const market of parsed.markets ?? []) this.markets.set(market.market_id, market);
+        for (const market of parsed.markets ?? []) {
+          let changed = false;
+
+          // F1 markets are manual-close only for MVP: disable any safety timeout clock.
+          if (
+            isF1Market(market) &&
+            (market.safety.max_open_duration_ms !== 0 ||
+              market.safety.expires_at_ms !== 0 ||
+              market.safety.timeout_triggered)
+          ) {
+            market.safety.max_open_duration_ms = 0;
+            market.safety.expires_at_ms = 0;
+            market.safety.timeout_triggered = false;
+            changed = true;
+          }
+
+          // Reopen any F1 market that was only suspended by the previous timeout rule.
+          if (
+            isF1Market(market) &&
+            market.status === "suspended" &&
+            market.context?.suspension_reason === "safety_timeout"
+          ) {
+            market.status = "open";
+            market.timestamps.updated_at_ms = Date.now();
+            if (market.timestamps.suspended_at_ms) delete market.timestamps.suspended_at_ms;
+            const { suspension_reason: _ignore, ...restContext } = market.context;
+            market.context = restContext;
+            changed = true;
+          }
+
+          if (
+            market.status === "open" &&
+            market.amm_state.trade_count === 0 &&
+            market.amm_state.virtual_liquidity !== DEFAULT_VIRTUAL_LIQUIDITY
+          ) {
+            const initialProbability = clamp(market.market_making.initial_probability_yes, 0.01, 0.99);
+            const nextAmm = createAmmState(
+              initialProbability,
+              DEFAULT_VIRTUAL_LIQUIDITY,
+              market.market_making.fee_bps,
+            );
+            market.amm_state = nextAmm;
+            market.prices = getImpliedProbabilities(nextAmm);
+            market.market_making.virtual_liquidity = DEFAULT_VIRTUAL_LIQUIDITY;
+            market.timestamps.updated_at_ms = Date.now();
+            changed = true;
+          }
+          if (changed) marketsMigrated = true;
+          this.markets.set(market.market_id, market);
+        }
       } catch {
         this.markets.clear();
       }
     } else if (legacyMarkets.length > 0) {
       for (const market of legacyMarkets) this.markets.set(market.market_id, market);
       // One-time migration from legacy accounts.json markets storage.
+      this.persistState();
+    }
+
+    if (marketsMigrated) {
       this.persistState();
     }
   }
@@ -695,7 +760,10 @@ export class MarketEngine {
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
     const requestedDurationMs =
       typeof input.open_duration_ms === "number" ? input.open_duration_ms : this.maxOpenDurationMs;
-    const marketDurationMs = clamp(requestedDurationMs, MIN_MARKET_DURATION_MS, MAX_MARKET_DURATION_MS);
+    const safetyTimeoutEnabled = input.sport !== "F1";
+    const marketDurationMs = safetyTimeoutEnabled
+      ? clamp(requestedDurationMs, MIN_MARKET_DURATION_MS, MAX_MARKET_DURATION_MS)
+      : 0;
     const amm_state = createAmmState(DEFAULT_INITIAL_PROBABILITY, DEFAULT_VIRTUAL_LIQUIDITY, DEFAULT_FEE_BPS);
 
     return {
@@ -727,7 +795,7 @@ export class MarketEngine {
       },
       safety: {
         max_open_duration_ms: marketDurationMs,
-        expires_at_ms: now + marketDurationMs,
+        expires_at_ms: safetyTimeoutEnabled ? now + marketDurationMs : 0,
         timeout_triggered: false,
       },
     };
@@ -738,6 +806,8 @@ export class MarketEngine {
     let changed = false;
     for (const market of this.markets.values()) {
       if (market.status !== "open") continue;
+      if (isF1Market(market)) continue;
+      if (market.safety.max_open_duration_ms <= 0) continue;
       if (now <= market.safety.expires_at_ms) continue;
 
       market.status = "suspended";

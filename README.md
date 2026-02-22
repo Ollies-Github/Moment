@@ -17,6 +17,12 @@ Terminal A:
 pnpm run dev
 ```
 
+Optional API tuning:
+
+```bash
+AMM_VIRTUAL_LIQUIDITY=120 pnpm --dir apps/api dev
+```
+
 ## iPhone (Expo Go)
 1. Install Expo Go (SDK 54).
 2. Keep iPhone and Mac on the same Wi-Fi.
@@ -61,6 +67,7 @@ EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:4000 pnpm --dir apps/mobile de
 - `market.settled`
 - `market.suspended`
 - `bet.accepted`
+- `bet.updated`
 - `bet.rejected`
 - `wallet.updated`
 - `connection.state`
