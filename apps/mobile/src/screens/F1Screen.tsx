@@ -7,7 +7,7 @@ import { MarketCard } from "../components/MarketCard";
 import { StakeModal } from "../components/StakeModal";
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
-import { colors } from "../theme/tokens";
+import { colors, gradients, layout } from "../theme/tokens";
 import type { Market, Selection } from "../types/contracts";
 
 export function F1Screen() {
@@ -62,13 +62,16 @@ export function F1Screen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <LinearGradient colors={["#091321", "#060b12"]} style={styles.hero}>
+      <LinearGradient colors={gradients.heroSports} style={styles.hero}>
         <View style={styles.heroTop}>
           <Text style={styles.title}>Sports</Text>
+          <View style={styles.liveChip}>
+            <Text style={styles.liveChipText}>LIVE FEED</Text>
+          </View>
         </View>
         <Text style={styles.subtitle}>Overtake in X laps markets only</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.meta}>Wallet {wallet?.balance.toFixed(2) ?? "--"}</Text>
+          <Text style={styles.meta}>Wallet €{wallet?.balance.toFixed(2) ?? "--"}</Text>
           <Text style={styles.meta}>{f1Bets.length} active picks</Text>
         </View>
       </LinearGradient>
@@ -120,50 +123,70 @@ const styles = StyleSheet.create({
   hero: {
     marginHorizontal: 14,
     marginTop: 10,
-    borderRadius: 20,
+    borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   heroTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 8,
   },
   title: {
     color: colors.text,
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: "900",
     letterSpacing: 0.2,
   },
+  liveChip: {
+    borderRadius: 999,
+    backgroundColor: "rgba(88,182,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(88,182,255,0.45)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  liveChipText: {
+    color: colors.accentBlue,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
   subtitle: {
     color: colors.muted,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   metaRow: {
     flexDirection: "row",
     gap: 14,
   },
   meta: {
-    color: colors.text,
+    color: colors.muted,
     fontWeight: "700",
     fontSize: 12,
   },
   listContent: {
     padding: 14,
-    gap: 10,
+    gap: 12,
     paddingBottom: 120,
   },
   emptyWrap: {
-    borderRadius: 16,
+    borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     marginTop: 20,
   },
   emptyTitle: {

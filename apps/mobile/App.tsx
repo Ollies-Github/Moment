@@ -19,7 +19,7 @@ const navTheme = {
     card: colors.bgElevated,
     border: colors.border,
     text: colors.text,
-    primary: colors.accentBlue,
+    primary: colors.accentGreen,
   },
 };
 

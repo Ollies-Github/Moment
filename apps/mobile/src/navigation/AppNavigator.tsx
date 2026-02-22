@@ -5,7 +5,7 @@ import { DevScreen } from "../screens/DevScreen";
 import { F1Screen } from "../screens/F1Screen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { StocksScreen } from "../screens/StocksScreen";
-import { colors } from "../theme/tokens";
+import { colors, layout } from "../theme/tokens";
 
 const Tabs = createBottomTabNavigator();
 
@@ -15,14 +15,29 @@ export function AppNavigator() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#0b121f",
+          backgroundColor: colors.bgElevated,
           borderTopColor: colors.border,
+          borderTopWidth: 1,
           height: 84,
           paddingBottom: 10,
           paddingTop: 8,
+          position: "absolute",
+          left: 12,
+          right: 12,
+          bottom: 10,
+          borderRadius: layout.radiusLg,
+          shadowColor: "#000",
+          shadowOpacity: 0.18,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 5,
         },
         tabBarActiveTintColor: colors.accentBlue,
         tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "700",
+        },
         tabBarIcon: ({ color, size }) => {
           const name =
             route.name === "Sports"

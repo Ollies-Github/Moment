@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 
-import { colors } from "../theme/tokens";
+import { colors, layout } from "../theme/tokens";
 
 type Props = {
   symbol: string;
@@ -17,9 +17,9 @@ const buildChartUrl = (symbol: string): string => {
     locale: "en",
     dateRange: "1D",
     colorTheme: "dark",
-    trendLineColor: "#38d2ff",
-    underLineColor: "rgba(61, 255, 157, 0.22)",
-    underLineBottomColor: "rgba(61, 255, 157, 0.02)",
+    trendLineColor: "#66bcff",
+    underLineColor: "rgba(102, 188, 255, 0.22)",
+    underLineBottomColor: "rgba(102, 188, 255, 0.04)",
     isTransparent: false,
     autosize: true,
     largeChartUrl: "",
@@ -70,22 +70,22 @@ export function TradingViewPanel({ symbol, height = 280 }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    borderRadius: 14,
+    borderRadius: layout.radiusMd,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#1d2b3f",
-    backgroundColor: "#090f1a",
+    borderColor: colors.border,
+    backgroundColor: colors.bgElevated,
   },
   webview: {
     flex: 1,
-    backgroundColor: "#090f1a",
+    backgroundColor: colors.bgElevated,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(9,15,26,0.45)",
+    backgroundColor: "rgba(8,16,28,0.45)",
   },
   errorWrap: {
     alignItems: "center",

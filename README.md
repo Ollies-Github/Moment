@@ -1,11 +1,10 @@
-# Moment MVP
+# Moment
 
-Minimal setup with only two apps:
-- `/Users/ollie/Documents/Personal/Projects/Moment/apps/api` (Fastify + socket.io)
-- `/Users/ollie/Documents/Personal/Projects/Moment/apps/mobile` (Expo SDK 54)
+- `apps/api` (Fastify + socket.io)
+- `apps/mobile` (Expo SDK 54)
 
 ## Install
-From `/Users/ollie/Documents/Personal/Projects/Moment`:
+From the project root:
 
 ```bash
 pnpm --dir apps/api install --lockfile=false

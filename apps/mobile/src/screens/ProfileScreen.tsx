@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
-import { colors } from "../theme/tokens";
+import { colors, gradients, layout } from "../theme/tokens";
 
 export function ProfileScreen() {
   const { userId, account, wallet, bets, setWallet } = useAppStore();
@@ -54,10 +55,10 @@ export function ProfileScreen() {
         <Text style={styles.username}>{account?.username ?? "User"}</Text>
         <Text style={styles.title}>Profile</Text>
 
-        <View style={styles.totalCard}>
+        <LinearGradient colors={gradients.cardSports} style={styles.totalCard}>
           <Text style={styles.totalLabel}>Total</Text>
           <Text style={styles.totalValue}>EUR {wallet?.balance.toFixed(2) ?? "0.00"}</Text>
-        </View>
+        </LinearGradient>
 
         <View style={styles.metricsCard}>
           <Text style={styles.blockTitle}>Lifetime Metrics</Text>
@@ -101,26 +102,30 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 14,
-    gap: 12,
+    gap: 14,
   },
   username: {
     color: colors.text,
-    fontSize: 40,
+    fontSize: 42,
     fontWeight: "900",
     letterSpacing: 0.2,
   },
   title: {
     color: colors.muted,
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: "800",
   },
   totalCard: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: layout.radiusLg,
     padding: 14,
-    backgroundColor: colors.surface,
     gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   totalLabel: {
     color: colors.muted,
@@ -136,9 +141,9 @@ const styles = StyleSheet.create({
   metricsCard: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: layout.radiusLg,
     padding: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     gap: 10,
   },
   metricsRow: {
@@ -149,8 +154,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    backgroundColor: "#0f172a",
+    borderRadius: layout.radiusSm,
+    backgroundColor: colors.bgElevated,
     paddingVertical: 10,
     alignItems: "center",
     gap: 4,
@@ -168,9 +173,9 @@ const styles = StyleSheet.create({
   fundsCard: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: layout.radiusLg,
     padding: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     gap: 10,
   },
   fundsRow: {
@@ -185,17 +190,17 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: layout.radiusSm,
     paddingVertical: 10,
     alignItems: "center",
   },
   addButton: {
-    borderColor: "#58dbad",
-    backgroundColor: "#17483d",
+    borderColor: "#439f76",
+    backgroundColor: "#1d4637",
   },
   withdrawButton: {
-    borderColor: "#c26d83",
-    backgroundColor: "#4a2330",
+    borderColor: "#b8566f",
+    backgroundColor: "#4b2532",
   },
   buttonText: {
     color: colors.text,

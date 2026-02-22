@@ -7,7 +7,7 @@ import { StakeModal } from "../components/StakeModal";
 import { TradingViewPanel } from "../components/TradingViewPanel";
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
-import { colors } from "../theme/tokens";
+import { colors, gradients, layout } from "../theme/tokens";
 import type { Market, Selection } from "../types/contracts";
 
 const getSymbol = (market: Market): string => {
@@ -67,13 +67,16 @@ export function StocksScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <LinearGradient colors={["#171021", "#0b111d"]} style={styles.hero}>
+      <LinearGradient colors={gradients.heroStocks} style={styles.hero}>
         <View style={styles.heroTop}>
           <Text style={styles.title}>Stocks</Text>
+          <View style={styles.liveChip}>
+            <Text style={styles.liveChipText}>FAST PICKS</Text>
+          </View>
         </View>
         <Text style={styles.subtitle}>Pick if the next move is UP or DOWN</Text>
         <View style={styles.metaRow}>
-          <Text style={styles.meta}>Wallet {wallet?.balance.toFixed(2) ?? "--"}</Text>
+          <Text style={styles.meta}>Wallet €{wallet?.balance.toFixed(2) ?? "--"}</Text>
           <Text style={styles.meta}>{stockBets.length} active picks</Text>
         </View>
       </LinearGradient>
@@ -155,34 +158,54 @@ const styles = StyleSheet.create({
   hero: {
     marginHorizontal: 14,
     marginTop: 10,
-    borderRadius: 20,
+    borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   heroTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 8,
   },
   title: {
     color: colors.text,
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: "900",
     letterSpacing: 0.2,
   },
+  liveChip: {
+    borderRadius: 999,
+    backgroundColor: "rgba(102,188,255,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(102,188,255,0.55)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  liveChipText: {
+    color: colors.accentBlue,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
   subtitle: {
     color: colors.muted,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   metaRow: {
     flexDirection: "row",
     gap: 14,
   },
   meta: {
-    color: colors.text,
+    color: colors.muted,
     fontWeight: "700",
     fontSize: 12,
   },
@@ -190,16 +213,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 130,
-    gap: 10,
+    gap: 12,
   },
   windowCard: {
     borderWidth: 1,
-    borderColor: "#22324a",
-    borderRadius: 20,
-    backgroundColor: "#0c1322",
+    borderColor: colors.border,
+    borderRadius: layout.radiusLg,
+    backgroundColor: colors.card,
     overflow: "hidden",
-    padding: 10,
-    gap: 8,
+    padding: 12,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   titleRow: {
     flexDirection: "row",
@@ -209,15 +237,15 @@ const styles = StyleSheet.create({
   },
   windowQuestion: {
     color: colors.text,
-    fontSize: 18,
+    fontSize: 23,
     fontWeight: "900",
-    lineHeight: 24,
+    lineHeight: 29,
     flex: 1,
   },
   livePill: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#2a3d58",
+    borderColor: "rgba(102,188,255,0.6)",
     paddingHorizontal: 8,
     paddingVertical: 4,
     flexDirection: "row",
@@ -242,48 +270,48 @@ const styles = StyleSheet.create({
   },
   sideButton: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: layout.radiusMd,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   sideDown: {
-    backgroundColor: "#25162d",
-    borderColor: "#694585",
+    backgroundColor: "rgba(66,30,43,0.86)",
+    borderColor: "#b8566f",
   },
   sideUp: {
-    backgroundColor: "#0f332c",
-    borderColor: "#279d72",
+    backgroundColor: "rgba(24,63,49,0.86)",
+    borderColor: "#439f76",
   },
   sideButtonSelectedDown: {
     transform: [{ scale: 1.04 }],
-    backgroundColor: "#3b2247",
-    borderColor: "#a96cc9",
+    backgroundColor: "rgba(76,36,49,0.92)",
+    borderColor: "#d56c84",
   },
   sideButtonSelectedUp: {
     transform: [{ scale: 1.04 }],
-    backgroundColor: "#16483e",
-    borderColor: "#58dbad",
+    backgroundColor: "rgba(32,77,60,0.92)",
+    borderColor: "#5ccf95",
   },
   sideLabel: {
     color: colors.text,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
   },
   sidePrice: {
     color: colors.text,
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "900",
     marginTop: 2,
   },
   emptyWrap: {
-    borderRadius: 16,
+    borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 16,
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     marginTop: 10,
   },
   emptyTitle: {

@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
-import { colors } from "../theme/tokens";
+import { colors, layout } from "../theme/tokens";
 
 const STOCK_SYMBOLS = ["TSLA", "NVDA", "COIN", "MSTR", "PLTR", "SMCI"];
 const F1_PAIRS = [
@@ -176,10 +176,10 @@ const styles = StyleSheet.create({
   block: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
+    borderRadius: layout.radiusMd,
     padding: 12,
-    gap: 8,
-    backgroundColor: colors.surface,
+    gap: 10,
+    backgroundColor: colors.card,
   },
   blockTitle: {
     color: colors.text,
@@ -187,11 +187,11 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   btn: {
-    borderRadius: 10,
+    borderRadius: layout.radiusSm,
     borderWidth: 1,
-    borderColor: "#2b3b55",
-    backgroundColor: "#122033",
-    paddingVertical: 10,
+    borderColor: colors.border,
+    backgroundColor: "#153255",
+    paddingVertical: 11,
     paddingHorizontal: 12,
   },
   btnText: {

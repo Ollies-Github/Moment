@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { api } from "../services/api";
-import { colors } from "../theme/tokens";
+import { colors, layout } from "../theme/tokens";
 import type { Market, Selection } from "../types/contracts";
 
 type Props = {
@@ -124,22 +124,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 12,
-    backgroundColor: "rgba(2,5,10,0.92)",
+    backgroundColor: "rgba(3,7,13,0.75)",
   },
   sheet: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: layout.radiusLg,
     borderWidth: 1,
     borderColor: colors.border,
     width: "100%",
     maxWidth: 480,
-    padding: 12,
-    gap: 10,
+    padding: 14,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.16,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   title: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "900",
   },
   row: {
     flexDirection: "row",
@@ -149,14 +154,14 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    backgroundColor: "#111a2b",
-    paddingVertical: 9,
+    borderRadius: layout.radiusSm,
+    backgroundColor: colors.bgElevated,
+    paddingVertical: 10,
     alignItems: "center",
   },
   presetSelected: {
-    borderColor: "#64e7b7",
-    backgroundColor: "#184536",
+    borderColor: colors.accentBlue,
+    backgroundColor: "#17304a",
   },
   presetText: {
     color: colors.text,
@@ -165,10 +170,10 @@ const styles = StyleSheet.create({
   amountWrap: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: layout.radiusMd,
     padding: 10,
     gap: 6,
-    backgroundColor: "#0f172a",
+    backgroundColor: colors.bgElevated,
   },
   amountLabel: {
     color: colors.muted,
@@ -195,18 +200,19 @@ const styles = StyleSheet.create({
   error: {
     color: colors.bad,
     fontSize: 12,
+    fontWeight: "700",
   },
   action: {
     flex: 1,
     paddingVertical: 11,
-    borderRadius: 10,
+    borderRadius: layout.radiusSm,
     alignItems: "center",
   },
   cancel: {
-    backgroundColor: "#243041",
+    backgroundColor: "#1d2a3f",
   },
   confirm: {
-    backgroundColor: "#1f8d63",
+    backgroundColor: "#1f5f8f",
   },
   actionText: {
     color: "#fff",

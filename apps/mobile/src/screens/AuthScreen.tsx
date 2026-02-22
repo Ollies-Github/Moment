@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api } from "../services/api";
 import { useAppStore } from "../store/useAppStore";
-import { colors } from "../theme/tokens";
+import { colors, layout } from "../theme/tokens";
 
 type Mode = "login" | "create";
 
@@ -118,15 +118,16 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.text,
-    fontSize: 38,
+    fontSize: 44,
     fontWeight: "900",
-    letterSpacing: 0.2,
-    textAlign: "center",
+    letterSpacing: 0.1,
+    textAlign: "left",
   },
   subtitle: {
     color: colors.muted,
-    textAlign: "center",
+    textAlign: "left",
     marginBottom: 8,
+    fontWeight: "600",
   },
   modeRow: {
     flexDirection: "row",
@@ -136,14 +137,14 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: layout.radiusSm,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bgElevated,
   },
   modeButtonActive: {
-    borderColor: "#67e5b7",
-    backgroundColor: "#173b35",
+    borderColor: colors.accentBlue,
+    backgroundColor: "#172b45",
   },
   modeText: {
     color: colors.text,
@@ -152,27 +153,32 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    padding: 12,
-    gap: 10,
+    borderRadius: layout.radiusLg,
+    backgroundColor: colors.card,
+    padding: 14,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    backgroundColor: "#0f172a",
+    borderRadius: layout.radiusSm,
+    backgroundColor: colors.bgElevated,
     color: colors.text,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontWeight: "600",
   },
   cta: {
     borderWidth: 1,
-    borderColor: "#67e5b7",
-    borderRadius: 10,
-    backgroundColor: "#1f4a40",
-    paddingVertical: 11,
+    borderColor: colors.accentBlue,
+    borderRadius: layout.radiusSm,
+    backgroundColor: "#1f5f8f",
+    paddingVertical: 12,
     alignItems: "center",
   },
   ctaText: {

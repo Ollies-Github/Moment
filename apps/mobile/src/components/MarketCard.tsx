@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { colors } from "../theme/tokens";
+import { colors, gradients, layout } from "../theme/tokens";
 import type { Market, Selection } from "../types/contracts";
 
 type Props = {
@@ -16,6 +16,9 @@ type Props = {
   positiveOnRight?: boolean;
   selectedSelection?: Selection;
 };
+
+const isPositiveSelection = (selection: Selection): boolean =>
+  selection === "YES" || selection === "HIGHER";
 
 const sideCopy = (
   type: Market["market_type"],
@@ -55,6 +58,13 @@ const sideCopy = (
   };
 };
 
+const statusTone = (status: Market["status"]) => {
+  if (status === "open") return { bg: "rgba(57,204,134,0.15)", text: colors.accentGreen };
+  if (status === "closed") return { bg: "rgba(255,183,101,0.16)", text: colors.accentOrange };
+  if (status === "settled") return { bg: "rgba(88,182,255,0.18)", text: colors.accentBlue };
+  return { bg: "rgba(255,100,127,0.16)", text: colors.bad };
+};
+
 export function MarketCard({
   market,
   onPick,
@@ -81,26 +91,21 @@ export function MarketCard({
   }, [market.prices.yes]);
 
   const gradient = useMemo(
-    () =>
-      variant === "stocks"
-        ? (["#1b1326", "#0d121e"] as const)
-        : (["#0f1f32", "#0a111b"] as const),
+    () => (variant === "stocks" ? gradients.cardStocks : gradients.cardSports),
     [variant],
   );
 
-  const trendText = trend === "up" ? "YES PRICE RISING" : trend === "down" ? "YES PRICE FALLING" : "PRICE STABLE";
+  const tone = statusTone(market.status);
+  const trendText = trend === "up" ? "MOMENTUM UP" : trend === "down" ? "MOMENTUM DOWN" : "MOMENTUM FLAT";
   const leftSelected = selectedSelection === copy.leftSelection;
   const rightSelected = selectedSelection === copy.rightSelection;
-  const leftPositive = copy.leftSelection === "YES" || copy.leftSelection === "HIGHER";
-  const rightPositive = copy.rightSelection === "YES" || copy.rightSelection === "HIGHER";
+  const leftPositive = isPositiveSelection(copy.leftSelection);
+  const rightPositive = isPositiveSelection(copy.rightSelection);
+  const leftPrice = leftPositive ? market.prices.yes : market.prices.no;
+  const rightPrice = rightPositive ? market.prices.yes : market.prices.no;
 
   return (
-    <LinearGradient
-      colors={gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.card}
-    >
+    <LinearGradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.card}>
       <View style={styles.topRow}>
         <View style={styles.tagsRow}>
           {showSportTag ? (
@@ -108,8 +113,8 @@ export function MarketCard({
               <Text style={styles.tagText}>{market.sport}</Text>
             </View>
           ) : null}
-          <View style={[styles.tag, styles.tagStatus]}>
-            <Text style={styles.tagText}>{market.status.toUpperCase()}</Text>
+          <View style={[styles.tag, { backgroundColor: tone.bg }]}>
+            <Text style={[styles.tagText, { color: tone.text }]}>{market.status.toUpperCase()}</Text>
           </View>
         </View>
         {liveLabel ? (
@@ -124,7 +129,6 @@ export function MarketCard({
 
       <View style={styles.metaRow}>
         <Text style={styles.metaText}>{trendText}</Text>
-        <Text style={styles.metaText}>{market.status.toUpperCase()}</Text>
       </View>
 
       <View style={styles.actionRow}>
@@ -139,7 +143,7 @@ export function MarketCard({
           onPress={() => onPick(market, copy.leftSelection)}
         >
           <Text style={styles.sideLabel}>{copy.left}</Text>
-          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{Math.round(market.prices.yes * 100)}%</Text>
+          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{Math.round(leftPrice * 100)}%</Text>
         </Pressable>
 
         <Pressable
@@ -153,7 +157,7 @@ export function MarketCard({
           onPress={() => onPick(market, copy.rightSelection)}
         >
           <Text style={styles.sideLabel}>{copy.right}</Text>
-          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{Math.round(market.prices.no * 100)}%</Text>
+          <Text style={[styles.sidePrice, compact && styles.sidePriceCompact]}>{Math.round(rightPrice * 100)}%</Text>
         </Pressable>
       </View>
     </LinearGradient>
@@ -164,9 +168,14 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 20,
+    borderRadius: layout.radiusLg,
     padding: 16,
     gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   topRow: {
     flexDirection: "row",
@@ -178,19 +187,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: "#1a2940",
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
-  },
-  tagStatus: {
-    backgroundColor: "#1a3a35",
   },
   tagText: {
     color: colors.text,
     fontSize: 11,
     fontWeight: "800",
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   liveWrap: {
     flexDirection: "row",
@@ -201,7 +207,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 999,
-    backgroundColor: colors.accentGreen,
   },
   liveText: {
     fontSize: 11,
@@ -220,12 +225,12 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
   },
   metaText: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   actionRow: {
     flexDirection: "row",
@@ -233,7 +238,7 @@ const styles = StyleSheet.create({
   },
   sideBtn: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: layout.radiusMd,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -245,25 +250,26 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.04 }],
   },
   sideBtnSelectedPositive: {
-    borderColor: "#4fe6aa",
-    backgroundColor: "#134238",
+    borderColor: "#5ccf95",
+    backgroundColor: "rgba(32,77,60,0.92)",
   },
   sideBtnSelectedNegative: {
-    borderColor: "#ff7c9a",
-    backgroundColor: "#4a1f30",
+    borderColor: "#d56c84",
+    backgroundColor: "rgba(76,36,49,0.92)",
   },
   sidePositive: {
-    backgroundColor: "#0f3730",
-    borderColor: "#2ca678",
+    backgroundColor: "rgba(24,63,49,0.86)",
+    borderColor: "#439f76",
   },
   sideNegative: {
-    backgroundColor: "#3a1a26",
-    borderColor: "#b74c69",
+    backgroundColor: "rgba(66,30,43,0.86)",
+    borderColor: "#b8566f",
   },
   sideLabel: {
     color: colors.text,
     fontSize: 12,
     fontWeight: "700",
+    letterSpacing: 0.3,
   },
   sidePrice: {
     color: colors.text,
