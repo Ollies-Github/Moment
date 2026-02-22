@@ -7,21 +7,14 @@
 From the project root:
 
 ```bash
-pnpm --dir apps/api install --lockfile=false
-pnpm --dir apps/mobile install --lockfile=false
+pnpm run setup
 ```
 
 ## Run
 Terminal A:
 
 ```bash
-pnpm --dir apps/api dev
-```
-
-Terminal B:
-
-```bash
-pnpm --dir apps/mobile dev
+pnpm run dev
 ```
 
 ## iPhone (Expo Go)
