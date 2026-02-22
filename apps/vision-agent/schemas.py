@@ -16,7 +16,7 @@ class StarterSignal(BaseModel):
     rival_driver: Optional[str] = None
     confidence: float = Field(ge=0.0, le=1.0)
     cooldown_key: str
-    market_duration_ms: int = Field(ge=30_000, le=90_000)
+    market_duration_ms: int = Field(ge=30_000, le=900_000)
     context: dict[str, Any] = Field(default_factory=dict)
 
 

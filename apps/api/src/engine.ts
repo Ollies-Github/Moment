@@ -27,6 +27,7 @@ const DEFAULT_INITIAL_PROBABILITY = 0.5;
 const DEFAULT_STARTING_BALANCE = 100;
 const DEFAULT_DEMO_PIN = "1234";
 const ACCOUNTS_FILE = resolve(process.cwd(), "data", "accounts.json");
+const MARKETS_FILE = resolve(process.cwd(), "data", "markets.json");
 const MIN_MARKET_DURATION_MS = 30_000;
 const MAX_MARKET_DURATION_MS = 900_000;
 
@@ -112,11 +113,13 @@ const getQuote = (amm: AmmState, selection: Selection, stake: number) => {
   };
 };
 
-type PersistedState = {
-  markets?: Market[];
+type PersistedAccountsState = {
   users: UserAccount[];
   wallets: Wallet[];
   picks: Bet[];
+};
+type PersistedMarketsState = {
+  markets: Market[];
 };
 
 export class EngineError extends Error {
@@ -582,37 +585,55 @@ export class MarketEngine {
 
   private loadState(): void {
     mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
-    if (!existsSync(ACCOUNTS_FILE)) return;
+    let legacyMarkets: Market[] = [];
 
-    try {
-      const raw = readFileSync(ACCOUNTS_FILE, "utf8");
-      const parsed = JSON.parse(raw) as PersistedState;
+    if (existsSync(ACCOUNTS_FILE)) {
+      try {
+        const raw = readFileSync(ACCOUNTS_FILE, "utf8");
+        const parsed = JSON.parse(raw) as PersistedAccountsState & { markets?: Market[] };
 
-      for (const market of parsed.markets ?? []) this.markets.set(market.market_id, market);
-      for (const user of parsed.users ?? []) this.users.set(user.user_id, user);
-      for (const wallet of parsed.wallets ?? []) this.wallets.set(wallet.user_id, wallet);
-      for (const pickRow of parsed.picks ?? []) {
-        this.bets.set(pickRow.bet_id, pickRow);
-        this.betsByUser.set(pickRow.user_id, [...(this.betsByUser.get(pickRow.user_id) ?? []), pickRow.bet_id]);
+        for (const user of parsed.users ?? []) this.users.set(user.user_id, user);
+        for (const wallet of parsed.wallets ?? []) this.wallets.set(wallet.user_id, wallet);
+        for (const pickRow of parsed.picks ?? []) {
+          this.bets.set(pickRow.bet_id, pickRow);
+          this.betsByUser.set(pickRow.user_id, [...(this.betsByUser.get(pickRow.user_id) ?? []), pickRow.bet_id]);
+        }
+        legacyMarkets = parsed.markets ?? [];
+      } catch {
+        this.users.clear();
+        this.wallets.clear();
+        this.bets.clear();
+        this.betsByUser.clear();
       }
-    } catch {
-      this.markets.clear();
-      this.users.clear();
-      this.wallets.clear();
-      this.bets.clear();
-      this.betsByUser.clear();
+    }
+
+    if (existsSync(MARKETS_FILE)) {
+      try {
+        const raw = readFileSync(MARKETS_FILE, "utf8");
+        const parsed = JSON.parse(raw) as PersistedMarketsState;
+        for (const market of parsed.markets ?? []) this.markets.set(market.market_id, market);
+      } catch {
+        this.markets.clear();
+      }
+    } else if (legacyMarkets.length > 0) {
+      for (const market of legacyMarkets) this.markets.set(market.market_id, market);
+      // One-time migration from legacy accounts.json markets storage.
+      this.persistState();
     }
   }
 
   private persistState(): void {
-    const state: PersistedState = {
-      markets: [...this.markets.values()],
+    const accountsState: PersistedAccountsState = {
       users: [...this.users.values()],
       wallets: [...this.wallets.values()],
       picks: [...this.bets.values()],
     };
+    const marketsState: PersistedMarketsState = {
+      markets: [...this.markets.values()],
+    };
     mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
-    writeFileSync(ACCOUNTS_FILE, JSON.stringify(state, null, 2), "utf8");
+    writeFileSync(ACCOUNTS_FILE, JSON.stringify(accountsState, null, 2), "utf8");
+    writeFileSync(MARKETS_FILE, JSON.stringify(marketsState, null, 2), "utf8");
   }
 
   private buildMarketFromStarter(input: StarterInput): Market {

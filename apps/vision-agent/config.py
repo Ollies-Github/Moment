@@ -30,5 +30,5 @@ class SafetyCarLapsConfig:
     ending_confirm_window: int = 5
     cooldown_seconds: int = 60
     confidence_threshold: float = 0.8
-    market_duration_ms: int = 90_000
+    market_duration_ms: int = 600_000
     lap_capture_wait_s: float = 25.0

@@ -1,3 +1,5 @@
+import type { MockBetCloserService } from "@moment/ai-bet-closer";
+import type { MockBetStarterService } from "@moment/ai-bet-starter";
 import type { FastifyInstance } from "fastify";
 
 import { EngineError, type MarketEngine } from "./engine";
@@ -17,7 +19,12 @@ import {
   type Selection,
 } from "./types";
 
-export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): void => {
+export const registerRoutes = (
+  fastify: FastifyInstance,
+  engine: MarketEngine,
+  starter: MockBetStarterService,
+  closer: MockBetCloserService,
+): void => {
   fastify.get("/health", async () => ({
     status: "ok",
     service: "moment-api",
@@ -171,15 +178,15 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
     const sport = body.data.sport ?? "F1";
     const fallbackEventType = sport === "Stocks" ? "stock_up_down_window" : "overtake_in_x_laps";
 
-    const market = engine.simulateStarterEvent({
+    // Fire through the starter service so the full bus pipeline runs
+    const event = starter.trigger({
       sport,
       event_type: body.data.event_type ?? fallbackEventType,
       session_id: body.data.session_id,
       context: body.data.context,
-      open_duration_ms: body.data.open_duration_ms,
     });
 
-    return { ok: true, market };
+    return { ok: true, event };
   });
 
   fastify.post("/dev/simulate/close-market", async (request, reply) => {
@@ -188,12 +195,14 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
       return reply.code(400).send({ message: body.error.message });
     }
 
-    const market = engine.closeMarket(body.data.market_id, body.data.reason ?? "manual_dev_trigger");
+    const market = engine.getMarket(body.data.market_id);
     if (!market) {
       return reply.code(404).send({ message: "Market not found" });
     }
 
-    return { ok: true, market };
+    // Fire through the closer bus so auto-settle kicks in after 2s
+    const trigger = closer.triggerClose(body.data.market_id, { reason: body.data.reason ?? "manual_dev_trigger" });
+    return { ok: true, trigger };
   });
 
   fastify.post("/dev/simulate/settle-market", async (request, reply) => {
