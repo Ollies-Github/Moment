@@ -16,6 +16,8 @@ SAFETY_CAR_PATTERNS = [
 ]
 SAFETY_CAR_ENDING_PATTERNS = [
     re.compile(r"\bSAFETY\s+CAR\s+ENDING\b", re.IGNORECASE),
+    re.compile(r"\bSAFETY\s*CAR\b.*\bENDING\b", re.IGNORECASE),
+    re.compile(r"\bENDING\b.*\bSAFETY\s*CAR\b", re.IGNORECASE),
 ]
 LAP_PATTERNS = [
     re.compile(r"\bLAP\s*(\d{1,3})\s*/\s*\d{1,3}\b", re.IGNORECASE),
@@ -118,6 +120,12 @@ class YellowFlagDetector:
         roi = self._top_roi(frame_bgr)
         text = self.ocr.read_text(roi)
         matched = any(p.search(text) for p in SAFETY_CAR_ENDING_PATTERNS)
+        if not matched:
+            # OCR commonly merges spacing/punctuation, so normalize and check key tokens.
+            normalized = re.sub(r"[^A-Z]", "", text.upper())
+            has_safety_car = "SAFETYCAR" in normalized or "VIRTUALSAFETYCAR" in normalized
+            has_ending = "ENDING" in normalized
+            matched = has_safety_car and has_ending
         confidence = 0.9 if matched else 0.0
         return matched, confidence, text
 

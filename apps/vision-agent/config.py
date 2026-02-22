@@ -26,9 +26,9 @@ class SafetyCarLapsConfig:
     roi_right_ratio: float = 0.34
     start_confirm_hits: int = 4
     start_confirm_window: int = 6
-    ending_confirm_hits: int = 4
-    ending_confirm_window: int = 6
+    ending_confirm_hits: int = 2
+    ending_confirm_window: int = 5
     cooldown_seconds: int = 60
     confidence_threshold: float = 0.8
-    market_duration_ms: int = 900_000
+    market_duration_ms: int = 90_000
     lap_capture_wait_s: float = 25.0

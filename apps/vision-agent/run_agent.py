@@ -32,6 +32,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-base-url", default="http://127.0.0.1:4000", help="Moment API base URL.")
     parser.add_argument("--session-id", required=True, help="Unique session id for this feed.")
     parser.add_argument("--fps", type=float, default=5.0, help="Processing FPS target.")
+    parser.add_argument(
+        "--sample-fps",
+        type=float,
+        default=None,
+        help="Sampled processing FPS for file sources (for faster-than-realtime offline analysis).",
+    )
     parser.add_argument("--show", action="store_true", help="Show debug overlay window.")
     parser.add_argument("--analyze-only", action="store_true", help="Only log timestamps/laps, do not call API.")
     return parser.parse_args()
@@ -48,6 +54,15 @@ def clip_time_s(cap: cv2.VideoCapture) -> float:
     if ms <= 0:
         return 0.0
     return ms / 1000.0
+
+
+def scale_confirmation(confirm_hits: int, confirm_window: int, detect_fps: float) -> tuple[int, int]:
+    # Config thresholds are tuned around 1 processed frame per second.
+    window_seconds = float(confirm_window)
+    hit_ratio = confirm_hits / max(confirm_window, 1)
+    scaled_window = max(1, int(round(window_seconds * max(detect_fps, 0.05))))
+    scaled_hits = max(1, int(round(hit_ratio * scaled_window)))
+    return min(scaled_hits, scaled_window), scaled_window
 
 
 def main() -> None:
@@ -70,19 +85,26 @@ def main() -> None:
     )
     client = MarketClient(args.api_base_url)
 
+    interval_s = 1.0 / max(args.fps, 0.5)
+    last_tick = 0.0
+    sample_step = None
+    source_is_file = not str(args.source).isdigit()
+    if args.sample_fps and args.sample_fps > 0 and source_is_file:
+        sample_step = max(1, int(round(source_fps / args.sample_fps)))
+    eval_fps = args.sample_fps if sample_step is not None else args.fps
+
+    start_hits, start_window = scale_confirmation(cfg.start_confirm_hits, cfg.start_confirm_window, eval_fps)
+    ending_hits, ending_window = scale_confirmation(cfg.ending_confirm_hits, cfg.ending_confirm_window, eval_fps)
     start_fsm = TriggerFSM(
-        confirm_hits=cfg.start_confirm_hits,
-        confirm_window=cfg.start_confirm_window,
+        confirm_hits=start_hits,
+        confirm_window=start_window,
         cooldown_seconds=cfg.cooldown_seconds,
     )
     ending_fsm = TriggerFSM(
-        confirm_hits=cfg.ending_confirm_hits,
-        confirm_window=cfg.ending_confirm_window,
+        confirm_hits=ending_hits,
+        confirm_window=ending_window,
         cooldown_seconds=1,
     )
-
-    interval_s = 1.0 / max(args.fps, 0.5)
-    last_tick = 0.0
     paused = False
     active_market: ActiveSafetyCarMarket | None = None
     sc_start_logged = False
@@ -95,11 +117,15 @@ def main() -> None:
     last_status = "idle"
     last_start_text = ""
     next_progress_log_s = 20.0
+    start_wall_s = time.time()
 
     print(
         f"[agent] source={args.source} mode=sc_laps ocr={ocr.mode} fps={args.fps} analyze_only={args.analyze_only} "
         f"roi=top:{cfg.roi_top_ratio:.2f}-{cfg.roi_bottom_ratio:.2f},left:0-{cfg.roi_right_ratio:.2f}"
     )
+    if sample_step is not None:
+        print(f"[agent] sampling=enabled sample_fps={args.sample_fps} step={sample_step}")
+    print(f"[agent] fsm start={start_hits}/{start_window} ending={ending_hits}/{ending_window} eval_fps={eval_fps}")
     print("[agent] controls: s=force SC start, e=force SC ending, p=pause, q=quit")
 
     while True:
@@ -110,7 +136,15 @@ def main() -> None:
         frame_index += 1
 
         now_s = time.time()
-        if now_s - last_tick < interval_s:
+        if sample_step is not None and frame_index % sample_step != 0:
+            if args.show:
+                cv2.imshow("vision-agent", frame)
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord("q"):
+                    break
+            continue
+
+        if sample_step is None and now_s - last_tick < interval_s:
             if args.show:
                 cv2.imshow("vision-agent", frame)
                 key = cv2.waitKey(1) & 0xFF
@@ -122,8 +156,11 @@ def main() -> None:
         current_ms = now_ms()
         t_s = frame_index / source_fps
         if t_s >= next_progress_log_s:
+            wall_elapsed_s = time.time() - start_wall_s
+            speed_x = (t_s / wall_elapsed_s) if wall_elapsed_s > 0 else 0.0
             print(
-                f"[progress] t={t_s:.2f}s last_lap={last_lap} sc_start={sc_start_logged} sc_ending={sc_ending_logged}"
+                f"[progress] clip_t={t_s:.2f}s wall_t={wall_elapsed_s:.2f}s speed={speed_x:.2f}x "
+                f"last_lap={last_lap} sc_start={sc_start_logged} sc_ending={sc_ending_logged}"
             )
             next_progress_log_s += 20.0
 
