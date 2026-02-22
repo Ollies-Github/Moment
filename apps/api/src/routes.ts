@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import { EngineError, type MarketEngine } from "./engine";
+import type { MockBetCloserService, MockBetStarterService } from "./mock-services";
 import {
   betRequestSchema,
   closeMarketBodySchema,
@@ -8,14 +9,21 @@ import {
   loginBodySchema,
   marketIdParamSchema,
   quoteRequestSchema,
+  resolutionSignalBodySchema,
   settleMarketBodySchema,
+  starterSignalBodySchema,
   starterEventBodySchema,
   userFundsBodySchema,
   userIdParamSchema,
   type Selection,
 } from "./types";
 
-export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): void => {
+export const registerRoutes = (
+  fastify: FastifyInstance,
+  engine: MarketEngine,
+  starter: MockBetStarterService,
+  closer: MockBetCloserService,
+): void => {
   fastify.get("/health", async () => ({
     status: "ok",
     service: "moment-api",
@@ -169,14 +177,15 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
     const sport = body.data.sport ?? "F1";
     const fallbackEventType = sport === "Stocks" ? "stock_up_down_window" : "overtake_in_x_laps";
 
-    const market = engine.simulateStarterEvent({
+    // Fire through the starter service so the full bus pipeline runs
+    const event = starter.trigger({
       sport,
       event_type: body.data.event_type ?? fallbackEventType,
       session_id: body.data.session_id,
       context: body.data.context,
     });
 
-    return { ok: true, market };
+    return { ok: true, event };
   });
 
   fastify.post("/dev/simulate/close-market", async (request, reply) => {
@@ -185,12 +194,14 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
       return reply.code(400).send({ message: body.error.message });
     }
 
-    const market = engine.closeMarket(body.data.market_id, body.data.reason ?? "manual_dev_trigger");
+    const market = engine.getMarket(body.data.market_id);
     if (!market) {
       return reply.code(404).send({ message: "Market not found" });
     }
 
-    return { ok: true, market };
+    // Fire through the closer bus so auto-settle kicks in after 2s
+    const trigger = closer.triggerClose(body.data.market_id, { reason: body.data.reason ?? "manual_dev_trigger" });
+    return { ok: true, trigger };
   });
 
   fastify.post("/dev/simulate/settle-market", async (request, reply) => {
@@ -213,5 +224,34 @@ export const registerRoutes = (fastify: FastifyInstance, engine: MarketEngine): 
   fastify.post("/dev/simulate/reset", async () => {
     engine.reset();
     return { ok: true };
+  });
+
+  fastify.post("/starter/events", async (request, reply) => {
+    const body = starterSignalBodySchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    const result = engine.ingestStarterSignal(body.data);
+    return {
+      ok: true,
+      deduped: result.deduped,
+      reason: result.reason,
+      market: result.market,
+    };
+  });
+
+  fastify.post("/closer/resolutions", async (request, reply) => {
+    const body = resolutionSignalBodySchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.code(400).send({ message: body.error.message });
+    }
+
+    const market = await engine.ingestResolutionSignal(body.data);
+    if (!market) {
+      return reply.code(404).send({ message: "Market not found" });
+    }
+
+    return { ok: true, market };
   });
 };

@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { Server as SocketIOServer } from "socket.io";
 
 import { MarketEngine } from "./engine";
+import { MockBetCloserService, MockBetStarterService, type BetCloseTrigger, type BetStarterEvent } from "./mock-services";
 import { registerRoutes } from "./routes";
 
 const PORT = Number(process.env.PORT ?? 4000);
@@ -26,9 +27,41 @@ const engine = new MarketEngine({
   },
 });
 
+const starter = new MockBetStarterService(
+  (event: BetStarterEvent) => {
+    engine.simulateStarterEvent({
+      sport: event.sport,
+      event_type: event.event_type,
+      session_id: event.session_id,
+      context: event.context,
+    });
+  },
+  {
+    // Set STARTER_INTERVAL_MS to auto-fire demo events (e.g. 60000 for 1 min).
+    intervalMs: Number(process.env.STARTER_INTERVAL_MS ?? 0),
+  },
+);
+
+const closer = new MockBetCloserService(async (trigger: BetCloseTrigger) => {
+  const market = engine.getMarket(trigger.market_id);
+  if (!market) return;
+
+  engine.closeMarket(trigger.market_id, trigger.reason);
+
+  await new Promise((resolve) => setTimeout(resolve, 2_000));
+
+  const outcome =
+    market.market_type === "binary_higher_lower"
+      ? (Math.random() < 0.5 ? "HIGHER" : "LOWER")
+      : (Math.random() < 0.5 ? "YES" : "NO");
+
+  await engine.settleMarket(trigger.market_id, outcome as "YES" | "NO" | "HIGHER" | "LOWER");
+});
+
 engine.start();
-engine.seed();
-registerRoutes(fastify, engine);
+// No engine.seed() — markets only appear when the starter fires a real trigger.
+
+registerRoutes(fastify, engine, starter, closer);
 
 io.on("connection", (socket) => {
   engine.setConnectionCount(io.engine.clientsCount);
@@ -50,6 +83,7 @@ io.on("connection", (socket) => {
 });
 
 const shutdown = async (): Promise<void> => {
+  starter.stop();
   engine.stop();
   io.close();
   await fastify.close();

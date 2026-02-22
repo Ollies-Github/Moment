@@ -19,12 +19,7 @@ export function F1Screen() {
   const [activePick, setActivePick] = useState<{ marketId: string; selection: Selection }>();
 
   const f1Markets = useMemo(
-    () =>
-      markets.filter(
-        (market) =>
-          market.sport === "F1" &&
-          String(market.context.source_event_type ?? "") === "overtake_in_x_laps",
-      ),
+    () => markets.filter((market) => market.sport === "F1"),
     [markets],
   );
 
@@ -69,7 +64,7 @@ export function F1Screen() {
             <Text style={styles.liveChipText}>LIVE FEED</Text>
           </View>
         </View>
-        <Text style={styles.subtitle}>Overtake in X laps markets only</Text>
+        <Text style={styles.subtitle}>Live F1 markets from backend</Text>
         <View style={styles.metaRow}>
           <Text style={styles.meta}>Wallet €{wallet?.balance.toFixed(2) ?? "--"}</Text>
           <Text style={styles.meta}>{f1Bets.length} active picks</Text>
@@ -86,16 +81,14 @@ export function F1Screen() {
             market={item}
             onPick={openStake}
             variant="f1"
-            leftLabel="NO"
-            rightLabel="YES"
             positiveOnRight
             selectedSelection={activePick?.marketId === item.market_id ? activePick.selection : undefined}
           />
         )}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyTitle}>No overtake markets live</Text>
-            <Text style={styles.emptyText}>Use the Dev tab to generate markets.</Text>
+            <Text style={styles.emptyTitle}>No live F1 markets</Text>
+            <Text style={styles.emptyText}>Pull to refresh.</Text>
           </View>
         }
       />

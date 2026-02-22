@@ -41,6 +41,7 @@ export const starterEventBodySchema = z.object({
   event_type: z.string().optional(),
   session_id: z.string().optional(),
   context: z.record(z.string(), z.any()).optional(),
+  open_duration_ms: z.number().int().min(30_000).max(900_000).optional(),
 });
 
 export const closeMarketBodySchema = z.object({
@@ -53,6 +54,33 @@ export const settleMarketBodySchema = z.object({
   outcome: selectionSchema.optional(),
 });
 
+export const triggerTypeSchema = z.enum(["YELLOW_FLAG_START", "PIT_STATE_CHANGE", "BATTLE_WINDOW_START", "SAFETY_CAR_START"]);
+
+export const starterSignalBodySchema = z.object({
+  event_id: z.string().min(1),
+  sport: z.literal("F1").default("F1"),
+  trigger_type: triggerTypeSchema,
+  session_id: z.string().min(1),
+  timestamp_ms: z.number().nonnegative(),
+  lap: z.number().int().positive().optional(),
+  driver: z.string().optional(),
+  rival_driver: z.string().optional(),
+  confidence: z.number().min(0).max(1),
+  cooldown_key: z.string().min(1),
+  market_duration_ms: z.number().int().min(30_000).max(900_000).default(60_000),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
+export const resolutionSignalBodySchema = z.object({
+  event_id: z.string().min(1),
+  market_id: z.string().min(1),
+  outcome: selectionSchema,
+  confidence: z.number().min(0).max(1),
+  resolved_at_ms: z.number().nonnegative().optional(),
+  reason: z.string().optional(),
+  context: z.record(z.string(), z.any()).optional(),
+});
+
 export type Sport = z.infer<typeof sportSchema>;
 export type MarketType = z.infer<typeof marketTypeSchema>;
 export type MarketStatus = z.infer<typeof marketStatusSchema>;
@@ -61,6 +89,7 @@ export type BetRequest = z.infer<typeof betRequestSchema>;
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
 export type CreateUserBody = z.infer<typeof createUserBodySchema>;
 export type LoginBody = z.infer<typeof loginBodySchema>;
+export type TriggerType = z.infer<typeof triggerTypeSchema>;
 
 export type AmmState = {
   yes_pool: number;
@@ -157,7 +186,11 @@ export type StarterInput = {
   event_type: string;
   session_id?: string;
   context?: Record<string, unknown>;
+  open_duration_ms?: number;
 };
+
+export type StarterSignalInput = z.infer<typeof starterSignalBodySchema>;
+export type ResolutionSignalInput = z.infer<typeof resolutionSignalBodySchema>;
 
 export type PublishEventName =
   | "market.opened"

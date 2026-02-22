@@ -13,6 +13,13 @@
       "pin": "1234",
       "created_at_ms": 1771708054573,
       "updated_at_ms": 1771708054573
+    },
+    {
+      "user_id": "usr_ebe21a38",
+      "username": "jakubn27",
+      "pin": "6767",
+      "created_at_ms": 1771721631042,
+      "updated_at_ms": 1771721631042
     }
   ],
   "wallets": [
@@ -25,7 +32,43 @@
       "user_id": "usr_28de5c5c",
       "balance": 100,
       "updated_at_ms": 1771708054573
+    },
+    {
+      "user_id": "usr_ebe21a38",
+      "balance": 104.76,
+      "updated_at_ms": 1771739005004
     }
   ],
-  "picks": []
+  "picks": [
+    {
+      "bet_id": "dedab75d-9979-4953-b58c-cf8d78afd1af",
+      "user_id": "usr_ebe21a38",
+      "market_id": "mkt_f1_1771736148407_ce4320",
+      "selection": "YES",
+      "stake": 5,
+      "fee": 0.06,
+      "effective_stake": 4.94,
+      "accepted_price": 0.5,
+      "potential_payout": 9.88,
+      "status": "settled_lost",
+      "created_at_ms": 1771736172635,
+      "payout": 0,
+      "settled_at_ms": 1771736296554
+    },
+    {
+      "bet_id": "ddb50c6a-10f8-42ef-b73d-97e84ab9354f",
+      "user_id": "usr_ebe21a38",
+      "market_id": "mkt_f1_1771738842337_380c72",
+      "selection": "NO",
+      "stake": 10,
+      "fee": 0.12,
+      "effective_stake": 9.88,
+      "accepted_price": 0.5,
+      "potential_payout": 19.76,
+      "status": "settled_won",
+      "created_at_ms": 1771738881691,
+      "payout": 19.76,
+      "settled_at_ms": 1771739005004
+    }
+  ]
 }
