@@ -3,7 +3,7 @@ from typing import Any
 
 import requests
 
-from schemas import ScannerSignal
+from schemas import ResolutionSignal, StarterSignal
 
 
 class MarketClient:
@@ -25,13 +25,10 @@ class MarketClient:
         except Exception:
             return {"raw": raw}
 
-    def post_scanner_event(self, signal: ScannerSignal) -> dict[str, Any]:
+    def post_starter(self, signal: StarterSignal) -> dict[str, Any]:
         payload = signal.model_dump(exclude_none=True)
-        return self._post_json("/scanner/events", payload, "scanner")
+        return self._post_json("/starter/events", payload, "starter")
 
-    # Backward-compatible aliases.
-    def post_starter(self, signal: ScannerSignal) -> dict[str, Any]:
-        return self.post_scanner_event(signal)
-
-    def post_resolution(self, signal: ScannerSignal) -> dict[str, Any]:
-        return self.post_scanner_event(signal)
+    def post_resolution(self, signal: ResolutionSignal) -> dict[str, Any]:
+        payload = signal.model_dump(exclude_none=True)
+        return self._post_json("/closer/resolutions", payload, "closer")

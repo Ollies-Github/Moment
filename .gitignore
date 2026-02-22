@@ -23,4 +23,4 @@ clips/
 *.pyc
 .pytest_cache/
 .python-version
-.env
+*.env

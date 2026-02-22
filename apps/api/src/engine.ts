@@ -748,7 +748,7 @@ export class MarketEngine {
   private loadState(): void {
     mkdirSync(dirname(ACCOUNTS_FILE), { recursive: true });
     let legacyMarkets: Market[] = [];
-    let marketsMigrated = false;
+    let resetPersistedMarkets = false;
 
     if (existsSync(ACCOUNTS_FILE)) {
       try {
@@ -770,83 +770,24 @@ export class MarketEngine {
       }
     }
 
+    // Markets are runtime-only for MVP: they appear only from explicit API calls.
+    // We intentionally clear any persisted/legacy markets on startup.
     if (existsSync(MARKETS_FILE)) {
       try {
         const raw = readFileSync(MARKETS_FILE, "utf8");
         const parsed = JSON.parse(raw) as PersistedMarketsState;
-        for (const market of parsed.markets ?? []) {
-          let changed = false;
-
-          // F1 markets are manual-close only for MVP: disable any safety timeout clock.
-          if (
-            isF1Market(market) &&
-            (market.safety.max_open_duration_ms !== 0 ||
-              market.safety.expires_at_ms !== 0 ||
-              market.safety.timeout_triggered)
-          ) {
-            market.safety.max_open_duration_ms = 0;
-            market.safety.expires_at_ms = 0;
-            market.safety.timeout_triggered = false;
-            changed = true;
-          }
-
-          // Reopen any F1 market that was only suspended by the previous timeout rule.
-          if (
-            isF1Market(market) &&
-            market.status === "suspended" &&
-            market.context?.suspension_reason === "safety_timeout"
-          ) {
-            market.status = "open";
-            market.timestamps.updated_at_ms = Date.now();
-            if (market.timestamps.suspended_at_ms) delete market.timestamps.suspended_at_ms;
-            const { suspension_reason: _ignore, ...restContext } = market.context;
-            market.context = restContext;
-            changed = true;
-          }
-
-          if (
-            market.status === "open" &&
-            market.amm_state.trade_count === 0 &&
-            market.amm_state.virtual_liquidity !== DEFAULT_VIRTUAL_LIQUIDITY
-          ) {
-            const initialProbability = clamp(market.market_making.initial_probability_yes, 0.01, 0.99);
-            const nextAmm = createAmmState(
-              initialProbability,
-              DEFAULT_VIRTUAL_LIQUIDITY,
-              market.market_making.fee_bps,
-            );
-            market.amm_state = nextAmm;
-            market.prices = getImpliedProbabilities(nextAmm);
-            market.market_making.virtual_liquidity = DEFAULT_VIRTUAL_LIQUIDITY;
-            market.timestamps.updated_at_ms = Date.now();
-            changed = true;
-          }
-          if (changed) marketsMigrated = true;
-          this.markets.set(market.market_id, market);
+        if ((parsed.markets ?? []).length > 0) {
+          resetPersistedMarkets = true;
         }
       } catch {
-        this.markets.clear();
+        // Ignore parse issues and continue with a clean in-memory market state.
       }
-    } else if (legacyMarkets.length > 0) {
-      for (const market of legacyMarkets) this.markets.set(market.market_id, market);
-      // One-time migration from legacy accounts.json markets storage.
-      this.persistState();
     }
-
-    for (const market of this.markets.values()) {
-      if (market.sport !== "Stocks") continue;
-      if (market.status !== "open") continue;
-      const closeAtMs = toFiniteNumber(market.context.close_at_ms);
-      if (!closeAtMs || closeAtMs <= 0) continue;
-      this.scheduleStockMarketClose(
-        market.market_id,
-        closeAtMs,
-        this.extractForcedSettlementOutcome(market.context),
-        "stock_close_time_reached",
-      );
+    if (legacyMarkets.length > 0) {
+      resetPersistedMarkets = true;
     }
-
-    if (marketsMigrated) {
+    this.markets.clear();
+    if (resetPersistedMarkets) {
       this.persistState();
     }
   }
@@ -919,6 +860,10 @@ export class MarketEngine {
       context.symbol = symbol;
       context.window_minutes = windowMinutes;
       question = `Will price be HIGHER in the next ${windowMinutes} minutes?`;
+    }
+    const customQuestion = typeof context.custom_question === "string" ? context.custom_question.trim() : "";
+    if (customQuestion) {
+      question = customQuestion;
     }
 
     const market_id = `mkt_${input.sport.toLowerCase()}_${now}_${starter_event_id.slice(0, 6)}`;
